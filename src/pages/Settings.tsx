@@ -4,20 +4,32 @@ import { Layout } from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, RefreshCw, LogOut } from "lucide-react";
+import { CheckCircle2, RefreshCw, LogOut, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useLocations } from "@/hooks/useLocations";
 
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [userEmail, setUserEmail] = useState<string>("");
+  const [hasGoogleTokens, setHasGoogleTokens] = useState<boolean>(false);
+  const { data: locations, isLoading: locationsLoading } = useLocations();
 
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.email) {
         setUserEmail(user.email);
+        
+        // Check if user has Google tokens
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('google_access_token')
+          .eq('id', user.id)
+          .single();
+        
+        setHasGoogleTokens(!!profile?.google_access_token);
       }
     };
     fetchUser();
@@ -84,28 +96,60 @@ const Settings = () => {
           <Card className="p-6">
             <h3 className="mb-4">Google Business Profile Connection</h3>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-success" />
-                  <div>
-                    <p className="font-medium">Connected</p>
-                    <p className="text-sm text-muted-foreground">
-                      Access to 3 business locations
-                    </p>
+              {hasGoogleTokens ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 className="h-5 w-5 text-success" />
+                      <div>
+                        <p className="font-medium">Connected</p>
+                        <p className="text-sm text-muted-foreground">
+                          {locationsLoading 
+                            ? "Loading locations..." 
+                            : `Access to ${locations?.length || 0} business location${locations?.length === 1 ? '' : 's'}`
+                          }
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="border-success text-success">
+                      Active
+                    </Badge>
                   </div>
-                </div>
-                <Badge variant="outline" className="border-success text-success">
-                  Active
-                </Badge>
-              </div>
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={handleReconnectGoogle}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Reconnect Account
-              </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={handleReconnectGoogle}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Reconnect Account
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <AlertCircle className="h-5 w-5 text-destructive" />
+                      <div>
+                        <p className="font-medium">Not Connected</p>
+                        <p className="text-sm text-muted-foreground">
+                          Please connect your Google Business Profile
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="border-destructive text-destructive">
+                      Inactive
+                    </Badge>
+                  </div>
+                  <Button 
+                    variant="default" 
+                    className="w-full"
+                    onClick={handleReconnectGoogle}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Connect Google Account
+                  </Button>
+                </>
+              )}
             </div>
           </Card>
 
