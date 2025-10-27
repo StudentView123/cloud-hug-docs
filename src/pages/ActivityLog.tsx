@@ -1,48 +1,13 @@
 import { Layout } from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Clock } from "lucide-react";
-
-const mockActivity = [
-  {
-    id: "1",
-    action: "Posted reply",
-    reviewer: "Sarah Johnson",
-    location: "Downtown Store",
-    user: "You",
-    timestamp: "2 hours ago",
-    status: "completed",
-  },
-  {
-    id: "2",
-    action: "Approved reply",
-    reviewer: "Michael Chen",
-    location: "North Branch",
-    user: "You",
-    timestamp: "5 hours ago",
-    status: "completed",
-  },
-  {
-    id: "3",
-    action: "Posted reply",
-    reviewer: "Emily Rodriguez",
-    location: "Downtown Store",
-    user: "You",
-    timestamp: "1 day ago",
-    status: "completed",
-  },
-  {
-    id: "4",
-    action: "Bulk posted",
-    reviewer: "3 reviews",
-    location: "Multiple locations",
-    user: "You",
-    timestamp: "2 days ago",
-    status: "completed",
-  },
-];
+import { CheckCircle2, Clock, RefreshCw } from "lucide-react";
+import { useActivityLog } from "@/hooks/useActivityLog";
+import { formatDistanceToNow } from "date-fns";
 
 const ActivityLog = () => {
+  const { data: activities, isLoading } = useActivityLog();
+
   return (
     <Layout>
       <div className="flex h-16 items-center border-b border-border px-8">
@@ -50,40 +15,49 @@ const ActivityLog = () => {
       </div>
 
       <div className="p-8">
-        <div className="space-y-3">
-          {mockActivity.map((activity) => (
-            <Card key={activity.id} className="p-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="rounded-full bg-success/10 p-2">
-                    <CheckCircle2 className="h-5 w-5 text-success" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{activity.action}</span>
-                      <span className="text-muted-foreground">for</span>
-                      <span className="font-medium">{activity.reviewer}</span>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : !activities || activities.length === 0 ? (
+          <Card className="p-12 text-center">
+            <p className="text-muted-foreground">No activity logged yet. Actions like generating and posting replies will appear here.</p>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {activities.map((activity) => {
+              const timeAgo = formatDistanceToNow(new Date(activity.created_at), { addSuffix: true });
+              
+              return (
+                <Card key={activity.id} className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="rounded-full bg-success/10 p-2">
+                        <CheckCircle2 className="h-5 w-5 text-success" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{activity.action}</span>
+                        </div>
+                        {activity.details && (
+                          <div className="mt-1 text-sm text-muted-foreground">
+                            {JSON.stringify(activity.details)}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-                      <span>{activity.location}</span>
-                      <span>•</span>
-                      <span>by {activity.user}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        <span>{timeAgo}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="border-success text-success">
-                    {activity.status}
-                  </Badge>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span>{activity.timestamp}</span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </Layout>
   );

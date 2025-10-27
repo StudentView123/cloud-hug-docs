@@ -3,53 +3,86 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Star, ThumbsUp, AlertCircle } from "lucide-react";
-
-// Mock data for demonstration
-const mockReviews = [
-  {
-    id: "1",
-    author: "Sarah Johnson",
-    rating: 5,
-    text: "Absolutely fantastic service! The team went above and beyond to help me. Highly recommend!",
-    date: "2 days ago",
-    location: "Downtown Store",
-    sentiment: "positive",
-    aiReply: "Thank you so much for your wonderful feedback, Sarah! We're thrilled to hear that our team provided you with exceptional service. Your recommendation means the world to us!",
-  },
-  {
-    id: "2",
-    author: "Michael Chen",
-    rating: 3,
-    text: "Good service but wait times were longer than expected. Staff was friendly though.",
-    date: "3 days ago",
-    location: "North Branch",
-    sentiment: "neutral",
-    aiReply: "Hi Michael, thank you for taking the time to share your experience. We appreciate your patience and are glad our team was friendly. We're working on improving our wait times and hope to serve you better next time!",
-  },
-  {
-    id: "3",
-    author: "Emily Rodriguez",
-    rating: 5,
-    text: "Best experience ever! Clean facility, professional staff, and great results.",
-    date: "5 days ago",
-    location: "Downtown Store",
-    sentiment: "positive",
-    aiReply: "Emily, we're so grateful for your kind words! It's wonderful to hear that you had such a positive experience with us. We look forward to serving you again soon!",
-  },
-];
+import { Star, ThumbsUp, AlertCircle, RefreshCw } from "lucide-react";
+import { useReviews, useFetchReviews } from "@/hooks/useReviews";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { formatDistanceToNow } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
 
 const Dashboard = () => {
+  const { data: reviews, isLoading } = useReviews();
+  const { fetchReviews } = useFetchReviews();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [fetchingReviews, setFetchingReviews] = useState(false);
+  const [generatingReply, setGeneratingReply] = useState<string | null>(null);
+
+  const handleFetchReviews = async () => {
+    setFetchingReviews(true);
+    try {
+      const result = await fetchReviews();
+      toast({
+        title: "Reviews fetched",
+        description: `Successfully fetched ${result.reviewsCount || 0} new reviews from Google`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["reviews"] });
+    } catch (error: any) {
+      toast({
+        title: "Error fetching reviews",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setFetchingReviews(false);
+    }
+  };
+
+  const handleGenerateReply = async (reviewId: string, reviewText: string, rating: number) => {
+    setGeneratingReply(reviewId);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-reply", {
+        body: { reviewId, reviewText, rating },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Reply generated",
+        description: "AI has generated a reply for this review",
+      });
+      queryClient.invalidateQueries({ queryKey: ["reviews"] });
+    } catch (error: any) {
+      toast({
+        title: "Error generating reply",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingReply(null);
+    }
+  };
+
+  const positiveReviews = reviews?.filter(r => r.sentiment === "positive").length || 0;
+  const pendingReplies = reviews?.filter(r => !r.replies || r.replies.length === 0).length || 0;
+  const averageRating = reviews?.length 
+    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+    : "0.0";
+
   return (
     <Layout>
       <div className="flex h-16 items-center justify-between border-b border-border px-8">
         <h2>Dashboard</h2>
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm">
-            Bulk Approve
-          </Button>
-          <Button size="sm">
-            Post All
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleFetchReviews}
+            disabled={fetchingReviews}
+          >
+            <RefreshCw className={`h-4 w-4 ${fetchingReviews ? 'animate-spin' : ''}`} />
+            Fetch Reviews from Google
           </Button>
         </div>
       </div>
@@ -63,7 +96,7 @@ const Dashboard = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Positive Reviews</p>
-                <p className="text-2xl font-semibold">24</p>
+                <p className="text-2xl font-semibold">{positiveReviews}</p>
               </div>
             </div>
           </Card>
@@ -75,7 +108,7 @@ const Dashboard = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Pending Replies</p>
-                <p className="text-2xl font-semibold">8</p>
+                <p className="text-2xl font-semibold">{pendingReplies}</p>
               </div>
             </div>
           </Card>
@@ -87,75 +120,121 @@ const Dashboard = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Average Rating</p>
-                <p className="text-2xl font-semibold">4.6</p>
+                <p className="text-2xl font-semibold">{averageRating}</p>
               </div>
             </div>
           </Card>
         </div>
 
-        <div className="space-y-4">
-          {mockReviews.map((review) => (
-            <Card key={review.id} className="p-6">
-              <div className="space-y-4">
-                {/* Review Header */}
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-semibold">{review.author}</h3>
-                      <Badge
-                        variant="outline"
-                        className={
-                          review.sentiment === "positive"
-                            ? "border-success text-success"
-                            : review.sentiment === "neutral"
-                            ? "border-warning text-warning"
-                            : "border-destructive text-destructive"
-                        }
-                      >
-                        {review.sentiment}
-                      </Badge>
-                    </div>
-                    <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-                      <div className="flex">
-                        {Array.from({ length: review.rating }).map((_, i) => (
-                          <Star key={i} className="h-4 w-4 fill-primary text-primary" />
-                        ))}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : !reviews || reviews.length === 0 ? (
+          <Card className="p-12 text-center">
+            <p className="text-muted-foreground mb-4">No reviews yet. Click "Fetch Reviews from Google" to get started.</p>
+            <Button onClick={handleFetchReviews} disabled={fetchingReviews}>
+              <RefreshCw className={`h-4 w-4 ${fetchingReviews ? 'animate-spin' : ''}`} />
+              Fetch Reviews
+            </Button>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {reviews.map((review) => {
+              const existingReply = review.replies?.[0];
+              const timeAgo = formatDistanceToNow(new Date(review.review_created_at), { addSuffix: true });
+              
+              return (
+                <Card key={review.id} className="p-6">
+                  <div className="space-y-4">
+                    {/* Review Header */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <h3 className="font-semibold">{review.author_name}</h3>
+                          {review.sentiment && (
+                            <Badge
+                              variant="outline"
+                              className={
+                                review.sentiment === "positive"
+                                  ? "border-success text-success"
+                                  : review.sentiment === "neutral"
+                                  ? "border-warning text-warning"
+                                  : "border-destructive text-destructive"
+                              }
+                            >
+                              {review.sentiment}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                          <div className="flex">
+                            {Array.from({ length: review.rating }).map((_, i) => (
+                              <Star key={i} className="h-4 w-4 fill-primary text-primary" />
+                            ))}
+                          </div>
+                          <span>•</span>
+                          <span>{timeAgo}</span>
+                          {review.location && (
+                            <>
+                              <span>•</span>
+                              <span>{review.location.name}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <span>•</span>
-                      <span>{review.date}</span>
-                      <span>•</span>
-                      <span>{review.location}</span>
                     </div>
+
+                    {/* Review Text */}
+                    {review.text && (
+                      <p className="text-foreground">{review.text}</p>
+                    )}
+
+                    {/* AI Reply */}
+                    {existingReply ? (
+                      <div className="rounded-lg bg-secondary p-4">
+                        <p className="mb-2 text-sm font-medium text-muted-foreground">
+                          {existingReply.is_ai_generated ? "AI-Generated Reply" : "Reply"}
+                        </p>
+                        <Textarea
+                          defaultValue={existingReply.content}
+                          className="min-h-[100px] resize-none"
+                        />
+                        <div className="mt-2 flex justify-end gap-2">
+                          <Badge variant="outline" className={
+                            existingReply.status === "posted" 
+                              ? "border-success text-success"
+                              : "border-warning text-warning"
+                          }>
+                            {existingReply.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed border-border p-4 text-center">
+                        <p className="text-sm text-muted-foreground mb-3">No reply generated yet</p>
+                        <Button 
+                          size="sm"
+                          onClick={() => handleGenerateReply(review.id, review.text || "", review.rating)}
+                          disabled={generatingReply === review.id}
+                        >
+                          {generatingReply === review.id ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                              Generating...
+                            </>
+                          ) : (
+                            "Generate AI Reply"
+                          )}
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                </div>
-
-                {/* Review Text */}
-                <p className="text-foreground">{review.text}</p>
-
-                {/* AI Reply */}
-                <div className="rounded-lg bg-secondary p-4">
-                  <p className="mb-2 text-sm font-medium text-muted-foreground">
-                    AI-Generated Reply
-                  </p>
-                  <Textarea
-                    defaultValue={review.aiReply}
-                    className="min-h-[100px] resize-none"
-                  />
-                </div>
-
-                {/* Actions */}
-                <div className="flex justify-end gap-3">
-                  <Button variant="outline" size="sm">
-                    Edit
-                  </Button>
-                  <Button size="sm">
-                    Post Reply
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </Layout>
   );
