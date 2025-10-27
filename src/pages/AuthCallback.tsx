@@ -33,12 +33,20 @@ const AuthCallback = () => {
 
         if (authError) {
           console.error('Auth error:', authError);
-          setError('Failed to complete authentication.');
+          setError(authError.message || 'Failed to complete authentication.');
+          setTimeout(() => navigate('/login'), 3000);
+          return;
+        }
+
+        if (data?.error) {
+          console.error('Backend error:', data.error);
+          setError(data.error);
           setTimeout(() => navigate('/login'), 3000);
           return;
         }
 
         if (data?.session) {
+          console.log('Setting session with tokens');
           // Set session
           const { error: sessionError } = await supabase.auth.setSession({
             access_token: data.session.access_token,
@@ -47,14 +55,16 @@ const AuthCallback = () => {
 
           if (sessionError) {
             console.error('Session error:', sessionError);
-            setError('Failed to establish session.');
+            setError('Failed to establish session: ' + sessionError.message);
             setTimeout(() => navigate('/login'), 3000);
             return;
           }
 
+          console.log('Session established, redirecting to dashboard');
           navigate('/dashboard');
         } else {
-          setError('Authentication response invalid.');
+          console.error('Invalid response data:', data);
+          setError('Authentication response invalid - no session returned.');
           setTimeout(() => navigate('/login'), 3000);
         }
       } catch (err) {

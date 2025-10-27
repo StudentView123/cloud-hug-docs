@@ -58,16 +58,26 @@ serve(async (req) => {
     }
 
     const userInfo = await userInfoResponse.json();
+    console.log('User info retrieved:', { email: userInfo.email, name: userInfo.name });
     
     // Create Supabase client with service role
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    // Check if user exists, if not create them
-    const { data: existingUser } = await supabase.auth.admin.getUserById(userInfo.id);
+    // Look up user by email instead of Google ID
+    const { data: { users }, error: listError } = await supabase.auth.admin.listUsers();
+    
+    if (listError) {
+      console.error('Error listing users:', listError);
+      throw listError;
+    }
+
+    const existingUser = users.find(u => u.email === userInfo.email);
+    console.log('User lookup result:', existingUser ? 'Found existing user' : 'New user');
     
     let userId;
-    if (!existingUser.user) {
+    if (!existingUser) {
       // Create new user
+      console.log('Creating new user for email:', userInfo.email);
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
         email: userInfo.email,
         email_confirm: true,
@@ -82,26 +92,31 @@ serve(async (req) => {
         throw createError;
       }
       userId = newUser.user.id;
+      console.log('New user created with ID:', userId);
     } else {
-      userId = existingUser.user.id;
+      userId = existingUser.id;
+      console.log('Using existing user ID:', userId);
     }
 
-    // Store tokens in profiles table
-    const { error: updateError } = await supabase
+    // Store tokens in profiles table (upsert to handle race conditions)
+    const { error: upsertError } = await supabase
       .from('profiles')
-      .update({
+      .upsert({
+        id: userId,
         google_access_token: tokens.access_token,
         google_refresh_token: tokens.refresh_token,
         token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-      })
-      .eq('id', userId);
+      }, {
+        onConflict: 'id'
+      });
 
-    if (updateError) {
-      console.error('Error updating profile:', updateError);
-      throw updateError;
+    if (upsertError) {
+      console.error('Error upserting profile:', upsertError);
+      throw upsertError;
     }
+    console.log('Profile updated with Google tokens');
 
-    // Generate session token
+    // Generate session for the user
     const { data: sessionData, error: sessionError } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
       email: userInfo.email,
@@ -111,11 +126,15 @@ serve(async (req) => {
       console.error('Error generating session:', sessionError);
       throw sessionError;
     }
+    
+    // Extract session from the properties
+    const session = sessionData.properties;
+    console.log('Session created successfully');
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        session: sessionData,
+        session: session,
         user: {
           id: userId,
           email: userInfo.email,
