@@ -23,6 +23,36 @@ const Settings = () => {
     fetchUser();
   }, []);
 
+  const handleReconnectGoogle = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
+
+      const { error } = await supabase.functions.invoke('disconnect-google', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Google account disconnected",
+        description: "Please sign in again to reconnect with updated permissions.",
+      });
+
+      navigate("/login");
+    } catch (error) {
+      toast({
+        title: "Error disconnecting Google account",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleLogout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
@@ -68,7 +98,11 @@ const Settings = () => {
                   Active
                 </Badge>
               </div>
-              <Button variant="outline" className="w-full">
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={handleReconnectGoogle}
+              >
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Reconnect Account
               </Button>

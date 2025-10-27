@@ -3,6 +3,9 @@ project_id = "rctsewtjmzkxfqsmgqcc"
 [functions.google-auth]
 verify_jwt = false
 
+[functions.disconnect-google]
+verify_jwt = true
+
 [functions.fetch-reviews]
 verify_jwt = true
 
