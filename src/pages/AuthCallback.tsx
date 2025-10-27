@@ -10,23 +10,34 @@ const AuthCallback = () => {
 
   useEffect(() => {
     const handleCallback = async () => {
-      const code = searchParams.get('code');
-      const errorParam = searchParams.get('error');
-
-      if (errorParam) {
-        setError('Authentication failed. Please try again.');
-        setTimeout(() => navigate('/login'), 3000);
-        return;
-      }
-
-      if (!code) {
-        setError('No authorization code received.');
-        setTimeout(() => navigate('/login'), 3000);
-        return;
-      }
-
       try {
-        // Exchange code for tokens via edge function
+        // First, check if we already have a session (after magic link redirect)
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          console.log('Session already exists, redirecting to dashboard');
+          navigate('/dashboard');
+          return;
+        }
+
+        const code = searchParams.get('code');
+        const errorParam = searchParams.get('error');
+
+        if (errorParam) {
+          setError('Authentication failed. Please try again.');
+          setTimeout(() => navigate('/login'), 3000);
+          return;
+        }
+
+        if (!code) {
+          setError('No authorization code received.');
+          setTimeout(() => navigate('/login'), 3000);
+          return;
+        }
+
+        console.log('Exchanging Google code for magic link');
+        
+        // Exchange code for magic link via edge function
         const { data, error: authError } = await supabase.functions.invoke('google-auth', {
           body: { code },
         });
@@ -45,26 +56,13 @@ const AuthCallback = () => {
           return;
         }
 
-        if (data?.session) {
-          console.log('Setting session with tokens');
-          // Set session
-          const { error: sessionError } = await supabase.auth.setSession({
-            access_token: data.session.access_token,
-            refresh_token: data.session.refresh_token,
-          });
-
-          if (sessionError) {
-            console.error('Session error:', sessionError);
-            setError('Failed to establish session: ' + sessionError.message);
-            setTimeout(() => navigate('/login'), 3000);
-            return;
-          }
-
-          console.log('Session established, redirecting to dashboard');
-          navigate('/dashboard');
+        if (data?.action_link) {
+          console.log('Redirecting to magic link to establish session');
+          // Redirect to the magic link - Supabase will handle session creation
+          window.location.href = data.action_link;
         } else {
           console.error('Invalid response data:', data);
-          setError('Authentication response invalid - no session returned.');
+          setError('Authentication response invalid - no action link returned.');
           setTimeout(() => navigate('/login'), 3000);
         }
       } catch (err) {

@@ -116,25 +116,26 @@ serve(async (req) => {
     }
     console.log('Profile updated with Google tokens');
 
-    // Generate session for the user
+    // Generate magic link for the user
     const { data: sessionData, error: sessionError } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
       email: userInfo.email,
+      options: {
+        redirectTo: `${req.headers.get('origin')}/auth/callback`,
+      },
     });
 
     if (sessionError) {
-      console.error('Error generating session:', sessionError);
+      console.error('Error generating magic link:', sessionError);
       throw sessionError;
     }
     
-    // Extract session from the properties
-    const session = sessionData.properties;
-    console.log('Session created successfully');
+    console.log('Magic link generated successfully');
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        session: session,
+        action_link: sessionData.properties.action_link,
         user: {
           id: userId,
           email: userInfo.email,
