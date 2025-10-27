@@ -46,62 +46,98 @@ serve(async (req) => {
     }
 
     const tokenExpired = profile.token_expires_at && new Date(profile.token_expires_at) < new Date();
-    
-    // Test accounts endpoint - using correct Google My Business Account Management API
-    console.log('Testing Google API connection with access token...');
-    const testResponse = await fetch('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', {
-      headers: { Authorization: `Bearer ${profile.google_access_token}` },
-    });
 
-    console.log('API Response Status:', testResponse.status);
-    console.log('API Response Content-Type:', testResponse.headers.get('content-type'));
+    // Probe multiple valid Business Profile API endpoints to avoid misrouted HTML 404s
+    const endpoints = [
+      'https://businessprofile.googleapis.com/v1/accounts',
+      'https://mybusinessaccountmanagement.googleapis.com/v1/accounts',
+    ];
+
+    const attempts: any[] = [];
+    let anySuccess = false;
+    let accountsFound = 0;
+
+    for (const url of endpoints) {
+      try {
+        console.log('Probing Google API:', url);
+        const resp = await fetch(url, {
+          headers: { Authorization: `Bearer ${profile.google_access_token}` },
+        });
+
+        const contentType = resp.headers.get('content-type') || '';
+        const bodyText = await resp.text();
+        const trimmed = bodyText.trim().slice(0, 1000);
+        const htmlDetected = contentType.includes('text/html') ||
+          trimmed.startsWith('<!DOCTYPE html') ||
+          trimmed.startsWith('<html');
+
+        const attempt: any = {
+          urlUsed: url,
+          status: resp.status,
+          ok: resp.ok,
+          contentType,
+          htmlDetected,
+        };
+
+        if (!resp.ok) {
+          if (!htmlDetected) {
+            try {
+              const parsed = JSON.parse(bodyText);
+              attempt.parsedError = {
+                message: parsed.error?.message,
+                code: parsed.error?.code || parsed.error?.status,
+                status: parsed.error?.status,
+              };
+              const quotaDetail = parsed.error?.details?.find((d: any) => d['@type']?.includes('ErrorInfo'));
+              if (quotaDetail) {
+                attempt.parsedError.quota = {
+                  service: quotaDetail?.metadata?.service,
+                  quota_limit_value: quotaDetail?.metadata?.quota_limit_value,
+                  reason: quotaDetail?.reason,
+                };
+              }
+            } catch {
+              attempt.parseError = true;
+              attempt.bodySnippet = trimmed;
+            }
+          } else {
+            attempt.bodySnippet = trimmed;
+          }
+        } else {
+          // Successful call
+          if (!htmlDetected && contentType.includes('application/json')) {
+            try {
+              const data = JSON.parse(bodyText);
+              accountsFound = data.accounts?.length || 0;
+              attempt.accountsFound = accountsFound;
+            } catch (_) {
+              // ignore parse error on success without JSON
+            }
+          }
+          anySuccess = true;
+        }
+
+        attempts.push(attempt);
+      } catch (e) {
+        attempts.push({
+          urlUsed: url,
+          networkError: e instanceof Error ? e.message : 'Unknown error',
+        });
+      }
+    }
+
+    const primary = attempts[0] || null;
 
     const diagnostics: any = {
       connected: true,
       tokenExpired,
       tokenExpiresAt: profile.token_expires_at,
       hasRefreshToken: !!profile.google_refresh_token,
-      apiTest: {
-        status: testResponse.status,
-        ok: testResponse.ok,
-      },
+      apiHealthy: anySuccess,
+      accountsFound,
+      apiTest: primary,
+      apiTests: attempts,
     };
-
-    if (!testResponse.ok) {
-      const errorBody = await testResponse.text();
-      console.log('API Error Response (first 500 chars):', errorBody.substring(0, 500));
-      
-      // Check if response is HTML (error page) vs JSON
-      const contentType = testResponse.headers.get('content-type');
-      if (contentType?.includes('text/html')) {
-        diagnostics.apiTest.error = 'Received HTML error page instead of JSON';
-        diagnostics.apiTest.isHtmlError = true;
-        diagnostics.apiTest.rawError = errorBody.substring(0, 1000); // First 1000 chars
-      } else {
-        try {
-          const parsed = JSON.parse(errorBody);
-          const quotaDetail = parsed.error?.details?.find((d: any) => d['@type']?.includes('ErrorInfo'));
-          
-          diagnostics.apiTest.error = parsed.error?.message;
-          diagnostics.apiTest.code = parsed.error?.code;
-          diagnostics.apiTest.service = quotaDetail?.metadata?.service;
-          diagnostics.apiTest.quotaLimitValue = quotaDetail?.metadata?.quota_limit_value;
-          diagnostics.apiTest.reason = quotaDetail?.reason;
-          
-          console.log('Parsed API Error:', parsed.error?.message);
-          if (quotaDetail) {
-            console.log('Quota Details:', quotaDetail);
-          }
-        } catch (parseError) {
-          diagnostics.apiTest.error = errorBody.substring(0, 500);
-          diagnostics.apiTest.parseError = true;
-        }
-      }
-    } else {
-      const data = await testResponse.json();
-      diagnostics.apiTest.accountsFound = data.accounts?.length || 0;
-      console.log('API Success: Found', diagnostics.apiTest.accountsFound, 'account(s)');
-    }
 
     return new Response(
       JSON.stringify(diagnostics),

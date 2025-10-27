@@ -83,28 +83,30 @@ const Settings = () => {
       setDiagnostics(data);
       
       // Check for HTML error responses
-      if (data.apiTest?.isHtmlError) {
+      if (data.apiTest?.htmlDetected) {
         toast({
           title: "API Endpoint Error",
-          description: "Received an HTML error page from Google API. Check the diagnostics below for details.",
+          description: `Received an HTML error page from Google. URL: ${data.apiTest?.urlUsed || 'unknown'}`,
           variant: "destructive",
         });
-      } else if (data.apiTest?.quotaLimitValue === "0") {
+      } else if (data.apiTest?.parsedError?.quota?.quota_limit_value === "0" || data.apiTest?.quotaLimitValue === "0") {
+        const svc = data.apiTest?.parsedError?.quota?.service || data.apiTest?.service || "Business Profile API";
         toast({
           title: "Quota Issue Detected",
-          description: `${data.apiTest.service} has 0 quota. Request increase in Google Cloud Console.`,
+          description: `${svc} has 0 quota. Request increase in Google Cloud Console.`,
           variant: "destructive",
         });
       } else if (!data.apiTest?.ok) {
+        const msg = data.apiTest?.parsedError?.message || data.apiTest?.error || "Failed to connect to Google API";
         toast({
           title: "Connection Issue",
-          description: data.apiTest?.error || "Failed to connect to Google API",
+          description: msg,
           variant: "destructive",
         });
       } else {
         toast({
           title: "Connection Healthy",
-          description: `Found ${data.apiTest.accountsFound} account(s). All systems operational.`,
+          description: `Found ${data.apiTest.accountsFound ?? 0} account(s). All systems operational.`,
         });
       }
     } catch (error) {
@@ -203,6 +205,18 @@ const Settings = () => {
                               {diagnostics.apiTest.status}
                             </Badge>
                           </div>
+                          {diagnostics.apiTest.urlUsed && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">Endpoint Used:</span>
+                              <span className="font-medium break-all">{diagnostics.apiTest.urlUsed}</span>
+                            </div>
+                          )}
+                          {diagnostics.apiTest.contentType && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">Content-Type:</span>
+                              <span className="font-medium">{diagnostics.apiTest.contentType}</span>
+                            </div>
+                          )}
                           {diagnostics.apiTest.accountsFound !== undefined && (
                             <div className="flex items-center justify-between">
                               <span className="text-muted-foreground">Accounts Found:</span>
@@ -217,21 +231,75 @@ const Settings = () => {
                               </Badge>
                             </div>
                           )}
-                          {diagnostics.apiTest.error && (
+                          {(diagnostics.apiTest.parsedError?.message || diagnostics.apiTest.error || diagnostics.apiTest.htmlDetected) && (
                             <div className="mt-2 space-y-1">
                               <span className="text-muted-foreground">Error:</span>
-                              <p className="text-xs text-destructive">{diagnostics.apiTest.error}</p>
-                              {diagnostics.apiTest.rawError && (
+                              {diagnostics.apiTest.parsedError?.message && (
+                                <p className="text-xs text-destructive">{diagnostics.apiTest.parsedError.message}</p>
+                              )}
+                              {!diagnostics.apiTest.parsedError?.message && diagnostics.apiTest.error && (
+                                <p className="text-xs text-destructive">{diagnostics.apiTest.error}</p>
+                              )}
+                              {diagnostics.apiTest.htmlDetected && !diagnostics.apiTest.parsedError?.message && !diagnostics.apiTest.error && (
+                                <p className="text-xs text-destructive">Received HTML error page from Google.</p>
+                              )}
+                              {(diagnostics.apiTest.bodySnippet || diagnostics.apiTest.rawError) && (
                                 <details className="mt-2">
                                   <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
                                     Show raw error
                                   </summary>
                                   <pre className="mt-2 max-h-40 overflow-auto rounded bg-muted/50 p-2 text-xs">
-                                    {diagnostics.apiTest.rawError}
+                                    {diagnostics.apiTest.bodySnippet || diagnostics.apiTest.rawError}
                                   </pre>
                                 </details>
                               )}
                             </div>
+                          )}
+                          {Array.isArray(diagnostics.apiTests) && diagnostics.apiTests.length > 0 && (
+                            <details className="mt-3">
+                              <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                                Show all connection attempts
+                              </summary>
+                              <div className="mt-2 space-y-3">
+                                {diagnostics.apiTests.map((t: any, idx: number) => (
+                                  <div key={idx} className="rounded-md border border-border p-2">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-muted-foreground">URL</span>
+                                      <span className="font-medium break-all">{t.urlUsed || 'unknown'}</span>
+                                    </div>
+                                    <div className="mt-1 flex items-center justify-between">
+                                      <span className="text-muted-foreground">Status</span>
+                                      <Badge variant={t.ok ? "outline" : "destructive"}>{t.status ?? "N/A"}</Badge>
+                                    </div>
+                                    {t.contentType && (
+                                      <div className="mt-1 flex items-center justify-between">
+                                        <span className="text-muted-foreground">Content-Type</span>
+                                        <span className="font-medium">{t.contentType}</span>
+                                      </div>
+                                    )}
+                                    {t.htmlDetected && (
+                                      <p className="mt-1 text-xs text-destructive">HTML error page detected</p>
+                                    )}
+                                    {t.parsedError?.message && (
+                                      <div className="mt-2">
+                                        <p className="text-xs text-destructive">{t.parsedError.message}</p>
+                                      </div>
+                                    )}
+                                    {t.bodySnippet && (
+                                      <details className="mt-1">
+                                        <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                                          Show raw error
+                                        </summary>
+                                        <pre className="mt-2 max-h-40 overflow-auto rounded bg-muted/50 p-2 text-xs">{t.bodySnippet}</pre>
+                                      </details>
+                                    )}
+                                    {t.networkError && (
+                                      <p className="mt-1 text-xs text-destructive">Network error: {t.networkError}</p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
                           )}
                         </>
                       )}
