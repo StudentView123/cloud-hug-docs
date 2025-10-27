@@ -37,16 +37,8 @@ const Settings = () => {
 
   const handleReconnectGoogle = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Not authenticated');
-      }
-
-      const { error } = await supabase.functions.invoke('disconnect-google', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
+      // Call the edge function (auth is handled automatically by supabase client)
+      const { error } = await supabase.functions.invoke('disconnect-google');
 
       if (error) throw error;
 
@@ -55,8 +47,10 @@ const Settings = () => {
         description: "Please sign in again to reconnect with updated permissions.",
       });
 
+      // Redirect to login to get fresh tokens
       navigate("/login");
     } catch (error) {
+      console.error('Disconnect error:', error);
       toast({
         title: "Error disconnecting Google account",
         description: error instanceof Error ? error.message : "An error occurred",
