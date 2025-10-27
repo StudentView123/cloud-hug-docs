@@ -82,7 +82,14 @@ const Settings = () => {
       if (error) throw error;
       setDiagnostics(data);
       
-      if (data.apiTest?.quotaLimitValue === "0") {
+      // Check for HTML error responses
+      if (data.apiTest?.isHtmlError) {
+        toast({
+          title: "API Endpoint Error",
+          description: "Received an HTML error page from Google API. Check the diagnostics below for details.",
+          variant: "destructive",
+        });
+      } else if (data.apiTest?.quotaLimitValue === "0") {
         toast({
           title: "Quota Issue Detected",
           description: `${data.apiTest.service} has 0 quota. Request increase in Google Cloud Console.`,
@@ -208,6 +215,22 @@ const Settings = () => {
                               <Badge variant={diagnostics.apiTest.quotaLimitValue === "0" ? "destructive" : "outline"}>
                                 {diagnostics.apiTest.quotaLimitValue} requests/min
                               </Badge>
+                            </div>
+                          )}
+                          {diagnostics.apiTest.error && (
+                            <div className="mt-2 space-y-1">
+                              <span className="text-muted-foreground">Error:</span>
+                              <p className="text-xs text-destructive">{diagnostics.apiTest.error}</p>
+                              {diagnostics.apiTest.rawError && (
+                                <details className="mt-2">
+                                  <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                                    Show raw error
+                                  </summary>
+                                  <pre className="mt-2 max-h-40 overflow-auto rounded bg-muted/50 p-2 text-xs">
+                                    {diagnostics.apiTest.rawError}
+                                  </pre>
+                                </details>
+                              )}
                             </div>
                           )}
                         </>

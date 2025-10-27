@@ -47,10 +47,14 @@ serve(async (req) => {
 
     const tokenExpired = profile.token_expires_at && new Date(profile.token_expires_at) < new Date();
     
-    // Test accounts endpoint
-    const testResponse = await fetch('https://businessprofile.googleapis.com/v1/accounts', {
+    // Test accounts endpoint - using correct Google My Business Account Management API
+    console.log('Testing Google API connection with access token...');
+    const testResponse = await fetch('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', {
       headers: { Authorization: `Bearer ${profile.google_access_token}` },
     });
+
+    console.log('API Response Status:', testResponse.status);
+    console.log('API Response Content-Type:', testResponse.headers.get('content-type'));
 
     const diagnostics: any = {
       connected: true,
@@ -65,21 +69,38 @@ serve(async (req) => {
 
     if (!testResponse.ok) {
       const errorBody = await testResponse.text();
-      try {
-        const parsed = JSON.parse(errorBody);
-        const quotaDetail = parsed.error?.details?.find((d: any) => d['@type']?.includes('ErrorInfo'));
-        
-        diagnostics.apiTest.error = parsed.error?.message;
-        diagnostics.apiTest.code = parsed.error?.code;
-        diagnostics.apiTest.service = quotaDetail?.metadata?.service;
-        diagnostics.apiTest.quotaLimitValue = quotaDetail?.metadata?.quota_limit_value;
-        diagnostics.apiTest.reason = quotaDetail?.reason;
-      } catch {
-        diagnostics.apiTest.error = errorBody;
+      console.log('API Error Response (first 500 chars):', errorBody.substring(0, 500));
+      
+      // Check if response is HTML (error page) vs JSON
+      const contentType = testResponse.headers.get('content-type');
+      if (contentType?.includes('text/html')) {
+        diagnostics.apiTest.error = 'Received HTML error page instead of JSON';
+        diagnostics.apiTest.isHtmlError = true;
+        diagnostics.apiTest.rawError = errorBody.substring(0, 1000); // First 1000 chars
+      } else {
+        try {
+          const parsed = JSON.parse(errorBody);
+          const quotaDetail = parsed.error?.details?.find((d: any) => d['@type']?.includes('ErrorInfo'));
+          
+          diagnostics.apiTest.error = parsed.error?.message;
+          diagnostics.apiTest.code = parsed.error?.code;
+          diagnostics.apiTest.service = quotaDetail?.metadata?.service;
+          diagnostics.apiTest.quotaLimitValue = quotaDetail?.metadata?.quota_limit_value;
+          diagnostics.apiTest.reason = quotaDetail?.reason;
+          
+          console.log('Parsed API Error:', parsed.error?.message);
+          if (quotaDetail) {
+            console.log('Quota Details:', quotaDetail);
+          }
+        } catch (parseError) {
+          diagnostics.apiTest.error = errorBody.substring(0, 500);
+          diagnostics.apiTest.parseError = true;
+        }
       }
     } else {
       const data = await testResponse.json();
       diagnostics.apiTest.accountsFound = data.accounts?.length || 0;
+      console.log('API Success: Found', diagnostics.apiTest.accountsFound, 'account(s)');
     }
 
     return new Response(
