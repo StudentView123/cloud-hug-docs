@@ -36,6 +36,40 @@ const Dashboard = () => {
     setFetchingReviews(true);
     try {
       const result = await fetchReviews();
+      
+      // Check for structured errors from edge function
+      if (result && typeof result === 'object' && 'error' in result) {
+        const err = result as any;
+        
+        // Special handling for quota errors
+        if (err.status === 429 && err.quotaLimitValue === 0) {
+          toast({
+            title: "API Quota Not Enabled",
+            description: `Google Business Profile API quota is 0. Please request quota increase in Google Cloud Console for: ${err.service || 'Business Profile API'}`,
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // Special handling for disabled services
+        if (err.status === 403 && err.reason === 'SERVICE_DISABLED') {
+          toast({
+            title: "API Not Enabled",
+            description: `Required Google API is disabled: ${err.service || 'Business Profile API'}. Enable it in Google Cloud Console.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // Generic Google API error
+        toast({
+          title: `Google API Error (${err.status})`,
+          description: err.message || "Failed to fetch reviews from Google",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       const count = (result && typeof result === 'object' && 'reviews' in result) ? (result.reviews?.length ?? 0) : (result as any)?.reviewsCount ?? 0;
       toast({
         title: "Reviews fetched",

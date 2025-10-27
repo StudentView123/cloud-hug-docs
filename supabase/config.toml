@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.generate-reply]
 verify_jwt = true
+
+[functions.check-connection]
+verify_jwt = true

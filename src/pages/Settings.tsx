@@ -4,7 +4,7 @@ import { Layout } from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, RefreshCw, LogOut, AlertCircle } from "lucide-react";
+import { CheckCircle2, RefreshCw, LogOut, AlertCircle, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLocations } from "@/hooks/useLocations";
@@ -14,6 +14,8 @@ const Settings = () => {
   const { toast } = useToast();
   const [userEmail, setUserEmail] = useState<string>("");
   const [hasGoogleTokens, setHasGoogleTokens] = useState<boolean>(false);
+  const [diagnostics, setDiagnostics] = useState<any>(null);
+  const [checkingConnection, setCheckingConnection] = useState(false);
   const { data: locations, isLoading: locationsLoading } = useLocations();
 
   useEffect(() => {
@@ -62,6 +64,50 @@ const Settings = () => {
         description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleCheckConnection = async () => {
+    setCheckingConnection(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase.functions.invoke('check-connection', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+      setDiagnostics(data);
+      
+      if (data.apiTest?.quotaLimitValue === "0") {
+        toast({
+          title: "Quota Issue Detected",
+          description: `${data.apiTest.service} has 0 quota. Request increase in Google Cloud Console.`,
+          variant: "destructive",
+        });
+      } else if (!data.apiTest?.ok) {
+        toast({
+          title: "Connection Issue",
+          description: data.apiTest?.error || "Failed to connect to Google API",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Connection Healthy",
+          description: `Found ${data.apiTest.accountsFound} account(s). All systems operational.`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Diagnostics Failed",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setCheckingConnection(false);
     }
   };
 
@@ -115,14 +161,59 @@ const Settings = () => {
                       Active
                     </Badge>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={handleReconnectGoogle}
-                  >
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Reconnect Account
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1"
+                      onClick={handleCheckConnection}
+                      disabled={checkingConnection}
+                    >
+                      <Shield className={`mr-2 h-4 w-4 ${checkingConnection ? 'animate-spin' : ''}`} />
+                      Check Connection
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="flex-1"
+                      onClick={handleReconnectGoogle}
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Reconnect
+                    </Button>
+                  </div>
+                  {diagnostics && (
+                    <div className="mt-4 space-y-2 rounded-lg bg-muted p-4 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Token Status:</span>
+                        <Badge variant={diagnostics.tokenExpired ? "destructive" : "outline"}>
+                          {diagnostics.tokenExpired ? "Expired" : "Valid"}
+                        </Badge>
+                      </div>
+                      {diagnostics.apiTest && (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">API Status:</span>
+                            <Badge variant={diagnostics.apiTest.ok ? "outline" : "destructive"}>
+                              {diagnostics.apiTest.status}
+                            </Badge>
+                          </div>
+                          {diagnostics.apiTest.accountsFound !== undefined && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">Accounts Found:</span>
+                              <span className="font-medium">{diagnostics.apiTest.accountsFound}</span>
+                            </div>
+                          )}
+                          {diagnostics.apiTest.quotaLimitValue !== undefined && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">API Quota:</span>
+                              <Badge variant={diagnostics.apiTest.quotaLimitValue === "0" ? "destructive" : "outline"}>
+                                {diagnostics.apiTest.quotaLimitValue} requests/min
+                              </Badge>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
