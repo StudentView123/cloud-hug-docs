@@ -17,13 +17,15 @@ serve(async (req) => {
       throw new Error('No authorization header');
     }
 
+    const jwt = authHeader.replace('Bearer ', '');
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
+      { global: { headers: { Authorization: `Bearer ${jwt}` } } }
     );
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
     if (userError || !user) {
       throw new Error('Not authenticated');
     }
@@ -170,6 +172,8 @@ serve(async (req) => {
         success: true,
         reviews: allReviews,
         locations: allLocations,
+        reviewsCount: allReviews.length,
+        locationsCount: allLocations.filter(Boolean).length,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
