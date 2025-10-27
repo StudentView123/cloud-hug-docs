@@ -37,8 +37,14 @@ const Settings = () => {
 
   const handleReconnectGoogle = async () => {
     try {
-      // Call the edge function (auth is handled automatically by supabase client)
-      const { error } = await supabase.functions.invoke('disconnect-google');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const { error } = await supabase.functions.invoke('disconnect-google', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
 
       if (error) throw error;
 

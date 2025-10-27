@@ -47,7 +47,16 @@ export const useReviews = () => {
 
 export const useFetchReviews = () => {
   const fetchReviews = async () => {
-    const { data, error } = await supabase.functions.invoke("fetch-reviews");
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('Not authenticated. Please log in and try again.');
+    }
+
+    const { data, error } = await supabase.functions.invoke("fetch-reviews", {
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
     
     if (error) throw error;
     return data;

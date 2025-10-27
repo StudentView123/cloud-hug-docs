@@ -5,13 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Star, ThumbsUp, AlertCircle, RefreshCw } from "lucide-react";
 import { useReviews, useFetchReviews } from "@/hooks/useReviews";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { data: reviews, isLoading } = useReviews();
   const { fetchReviews } = useFetchReviews();
   const { toast } = useToast();
@@ -19,13 +21,25 @@ const Dashboard = () => {
   const [fetchingReviews, setFetchingReviews] = useState(false);
   const [generatingReply, setGeneratingReply] = useState<string | null>(null);
 
+  useEffect(() => {
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({ title: "Please log in", description: "Your session expired.", variant: "destructive" });
+        navigate('/login');
+      }
+    };
+    init();
+  }, [navigate, toast]);
+
   const handleFetchReviews = async () => {
     setFetchingReviews(true);
     try {
       const result = await fetchReviews();
+      const count = (result && typeof result === 'object' && 'reviews' in result) ? (result.reviews?.length ?? 0) : (result as any)?.reviewsCount ?? 0;
       toast({
         title: "Reviews fetched",
-        description: `Successfully fetched ${result.reviewsCount || 0} new reviews from Google`,
+        description: `Successfully fetched ${count} new reviews from Google`,
       });
       queryClient.invalidateQueries({ queryKey: ["reviews"] });
     } catch (error: any) {
@@ -44,6 +58,9 @@ const Dashboard = () => {
     try {
       const { data, error } = await supabase.functions.invoke("generate-reply", {
         body: { reviewId, reviewText, rating },
+        headers: {
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ''}`,
+        },
       });
 
       if (error) throw error;
