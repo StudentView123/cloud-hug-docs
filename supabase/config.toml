@@ -1,1 +1,10 @@
 project_id = "rctsewtjmzkxfqsmgqcc"
+
+[functions.google-auth]
+verify_jwt = false
+
+[functions.fetch-reviews]
+verify_jwt = true
+
+[functions.generate-reply]
+verify_jwt = true
