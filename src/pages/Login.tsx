@@ -3,9 +3,11 @@ import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     // Check if already logged in
@@ -18,8 +20,18 @@ const Login = () => {
 
   const handleGoogleLogin = () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    
+    if (!clientId) {
+      toast({
+        title: "Configuration Error",
+        description: "Google login not configured. Please set VITE_GOOGLE_CLIENT_ID.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     const redirectUri = `${window.location.origin}/auth/callback`;
-    const scope = 'https://www.googleapis.com/auth/business.manage https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile';
+    const scope = 'openid https://www.googleapis.com/auth/business.manage https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile';
     
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
       client_id: clientId,
@@ -29,6 +41,8 @@ const Login = () => {
       access_type: 'offline',
       prompt: 'consent',
     })}`;
+    
+    console.log('Google OAuth URL:', authUrl);
     
     window.location.href = authUrl;
   };
