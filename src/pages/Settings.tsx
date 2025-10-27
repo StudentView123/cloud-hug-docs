@@ -1,10 +1,48 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, RefreshCw } from "lucide-react";
+import { CheckCircle2, RefreshCw, LogOut } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Settings = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [userEmail, setUserEmail] = useState<string>("");
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        setUserEmail(user.email);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      toast({
+        title: "Signed out successfully",
+        description: "You have been logged out of your account.",
+      });
+      
+      navigate("/login");
+    } catch (error) {
+      toast({
+        title: "Error signing out",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <Layout>
       <div className="flex h-16 items-center border-b border-border px-8">
@@ -42,7 +80,7 @@ const Settings = () => {
             <div className="space-y-3">
               <div>
                 <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium">user@example.com</p>
+                <p className="font-medium">{userEmail || "Loading..."}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Plan</p>
@@ -77,6 +115,18 @@ const Settings = () => {
                 </Button>
               </div>
             </div>
+          </Card>
+
+          <Card className="p-6">
+            <h3 className="mb-4">Account Actions</h3>
+            <Button 
+              variant="destructive" 
+              className="w-full"
+              onClick={handleLogout}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
           </Card>
         </div>
       </div>
