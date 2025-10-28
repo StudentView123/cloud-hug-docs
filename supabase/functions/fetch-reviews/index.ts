@@ -148,8 +148,8 @@ serve(async (req) => {
     for (const account of accounts) {
       console.log(`Processing account: ${account.name}`);
       
-      // Fetch locations using Business Account Management API
-      const locationsUrl = `https://mybusinessaccountmanagement.googleapis.com/v1/${account.name}/locations`;
+      // Fetch locations using Business Account Management API with required read_mask
+      const locationsUrl = `https://mybusinessaccountmanagement.googleapis.com/v1/${account.name}/locations?readMask=name,title,storefrontAddress`;
       const locationsResponse = await fetch(locationsUrl, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
@@ -192,8 +192,8 @@ serve(async (req) => {
           locationId = existingLocation.id;
         }
 
-        // Fetch reviews using Business Account Management API
-        const reviewsUrl = `https://mybusinessaccountmanagement.googleapis.com/v1/${location.name}/reviews`;
+        // Fetch reviews using Business Account Management API with required read_mask
+        const reviewsUrl = `https://mybusinessaccountmanagement.googleapis.com/v1/${location.name}/reviews?readMask=name,reviewId,reviewer,starRating,comment,createTime`;
         const reviewsResponse = await fetch(reviewsUrl, {
           headers: { Authorization: `Bearer ${accessToken}` }
         });
