@@ -146,6 +146,9 @@ serve(async (req) => {
     const allLocations = [];
     let foundLocationCount = 0;
     let foundReviewCount = 0;
+    let updatedToArchivedTrue = 0;
+    let updatedToArchivedFalse = 0;
+    let insertedNew = 0;
 
     for (const account of accounts) {
       console.log(`Processing account: ${account.name}`);
@@ -236,20 +239,26 @@ serve(async (req) => {
           console.log(`✓ Found ${reviews.length} reviews for ${location.title || location.name}`);
 
           for (const review of reviews) {
-            const hasGoogleReply = review.reviewReply && review.reviewReply.comment;
-            const googleReplyContent = hasGoogleReply ? review.reviewReply.comment : null;
-            const googleReplyTime = hasGoogleReply ? review.reviewReply.updateTime : null;
+            // Strict boolean for reply status
+            const hasGoogleReply = !!(review.reviewReply?.comment?.length);
+            const googleReplyContent = hasGoogleReply ? review.reviewReply!.comment : null;
+            const googleReplyTime = hasGoogleReply ? review.reviewReply!.updateTime : null;
             
             const { data: existingReview } = await supabase
               .from('reviews')
-              .select('id, has_google_reply, google_reply_content')
+              .select('id, has_google_reply, google_reply_content, archived')
               .eq('google_review_id', review.name || review.reviewId)
               .maybeSingle();
 
             if (existingReview) {
-              // Update existing review if Google reply status or content changed
-              if (existingReview.has_google_reply !== hasGoogleReply || 
-                  existingReview.google_reply_content !== googleReplyContent) {
+              // Update if reply status changed, content changed, or archived is null/incorrect
+              const needsUpdate = 
+                existingReview.has_google_reply !== hasGoogleReply || 
+                existingReview.google_reply_content !== googleReplyContent ||
+                existingReview.archived === null ||
+                existingReview.archived !== hasGoogleReply;
+              
+              if (needsUpdate) {
                 const { error: updateError } = await supabase
                   .from('reviews')
                   .update({ 
@@ -263,6 +272,11 @@ serve(async (req) => {
                 if (updateError) {
                   console.error(`⚠️ Failed to update review ${existingReview.id}:`, updateError.message);
                 } else {
+                  if (hasGoogleReply) {
+                    updatedToArchivedTrue++;
+                  } else {
+                    updatedToArchivedFalse++;
+                  }
                   console.log(`✓ Updated review ${existingReview.id} - archived: ${hasGoogleReply}`);
                 }
               }
@@ -292,7 +306,10 @@ serve(async (req) => {
                 .select()
                 .single();
               
-              if (newReview) allReviews.push(newReview);
+              if (newReview) {
+                allReviews.push(newReview);
+                insertedNew++;
+              }
             }
           }
 
@@ -302,17 +319,20 @@ serve(async (req) => {
     }
 
     console.log(`✓ Completed: Found ${foundReviewCount} reviews from ${foundLocationCount} locations`);
-    console.log(`✓ Inserted: ${allReviews.length} new reviews, ${allLocations.length} new locations`);
+    console.log(`✓ Inserted: ${insertedNew} new reviews, ${allLocations.length} new locations`);
+    console.log(`✓ Updated: ${updatedToArchivedTrue} archived (replied), ${updatedToArchivedFalse} unarchived (no reply)`);
 
     return new Response(
       JSON.stringify({ 
         success: true,
         reviews: allReviews,
         locations: allLocations,
-        newReviewsCount: allReviews.length,
+        newReviewsCount: insertedNew,
         newLocationsCount: allLocations.length,
         foundReviewCount,
         foundLocationCount,
+        updatedToArchivedTrue,
+        updatedToArchivedFalse,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
