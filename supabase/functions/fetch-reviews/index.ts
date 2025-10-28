@@ -260,8 +260,8 @@ serve(async (req) => {
                   })
                   .eq('id', existingReview.id);
               }
-            } else if (!hasGoogleReply && locationId) {
-              // Only insert NEW unanswered reviews
+            } else if (locationId) {
+              // Insert ALL reviews (both answered and unanswered)
               const rating = typeof review.starRating === 'number' ? review.starRating : 
                              review.starRating === 'FIVE' ? 5 : 
                              review.starRating === 'FOUR' ? 4 : 
@@ -278,15 +278,16 @@ serve(async (req) => {
                   rating,
                   text: review.comment,
                   review_created_at: review.createTime,
-                  has_google_reply: false,
-                  archived: false,
+                  has_google_reply: hasGoogleReply,
+                  google_reply_content: googleReplyContent,
+                  google_reply_time: googleReplyTime,
+                  archived: hasGoogleReply,
                 })
                 .select()
                 .single();
               
               if (newReview) allReviews.push(newReview);
             }
-            // Reviews with Google replies are skipped (not imported)
           }
 
           nextPageToken = reviewsData.nextPageToken || null;
