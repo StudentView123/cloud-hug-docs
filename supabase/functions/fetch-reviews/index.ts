@@ -123,7 +123,7 @@ serve(async (req) => {
 
     // Fetch accounts using modern Business Profile API
     console.log('Fetching accounts from Business Profile API v1...');
-    const accountsUrl = 'https://businessprofile.googleapis.com/v1/accounts';
+    const accountsUrl = 'https://mybusinessaccountmanagement.googleapis.com/v1/accounts';
     const accountsResponse = await fetch(accountsUrl, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
