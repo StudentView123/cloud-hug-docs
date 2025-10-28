@@ -96,7 +96,7 @@ serve(async (req) => {
     for (const account of accounts) {
       console.log(`Processing account: ${account.name}`);
       
-      const locationsBaseUrl = `https://mybusinessaccountmanagement.googleapis.com/v1/${account.name}/locations?readMask=name,title,storefrontAddress&pageSize=100`;
+      const locationsBaseUrl = `https://mybusinessaccountmanagement.googleapis.com/v1/${account.name}/locations?readMask=name,title,storefrontAddress,locationState&pageSize=100`;
       let nextPageToken: string | null = null;
 
       do {
@@ -104,6 +104,7 @@ serve(async (req) => {
           ? `${locationsBaseUrl}&pageToken=${nextPageToken}` 
           : locationsBaseUrl;
         
+        console.log(`Fetching: ${locationsUrl}`);
         const locationsResponse: Response = await fetch(locationsUrl, {
           headers: { Authorization: `Bearer ${accessToken}` }
         });
@@ -116,6 +117,14 @@ serve(async (req) => {
 
         const locationsData: any = await locationsResponse.json();
         const pageLocations = locationsData.locations || [];
+        
+        // Log each location found
+        pageLocations.forEach((loc: any) => {
+          console.log(`  - ${loc.title || 'No Title'} (${loc.name})`);
+          console.log(`    Address: ${loc.storefrontAddress?.addressLines?.join(', ') || 'No address'}`);
+          console.log(`    State: ${loc.locationState?.name || 'Unknown'}`);
+        });
+        
         googleLocations.push(...pageLocations);
         
         nextPageToken = locationsData.nextPageToken || null;
@@ -136,6 +145,15 @@ serve(async (req) => {
     // Find and insert missing locations
     const missingLocations = googleLocations.filter(loc => !dbLocationIds.has(loc.name));
     console.log(`✓ Found ${missingLocations.length} missing locations to sync`);
+    
+    if (missingLocations.length > 0) {
+      console.log('Missing locations details:');
+      missingLocations.forEach((loc: any) => {
+        console.log(`  - ${loc.title || 'No Title'}`);
+        console.log(`    ID: ${loc.name}`);
+        console.log(`    Address: ${loc.storefrontAddress?.addressLines?.join(', ') || 'No address'}`);
+      });
+    }
 
     const insertedLocations = [];
     for (const location of missingLocations) {
