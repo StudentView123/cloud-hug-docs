@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Star, ThumbsUp, AlertCircle, RefreshCw, Send, Edit2, Check, ArrowUpDown, CheckSquare, X } from "lucide-react";
+import { Star, ThumbsUp, AlertCircle, RefreshCw, Send, Edit2, Check, ArrowUpDown, CheckSquare, X, BarChart3 } from "lucide-react";
 import { useReviews, useFetchReviews } from "@/hooks/useReviews";
 import { useLocations } from "@/hooks/useLocations";
 import { useEffect, useState } from "react";
@@ -14,6 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { useCheckSyncStatus, useSyncMissingReviews, SyncStatusResponse } from "@/hooks/useSyncStatus";
+import { SyncStatusDialog } from "@/components/SyncStatusDialog";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -35,6 +37,14 @@ const Dashboard = () => {
   const [selectedReviewIds, setSelectedReviewIds] = useState<Set<string>>(new Set());
   const [bulkGenerating, setBulkGenerating] = useState(false);
   const [bulkPosting, setBulkPosting] = useState(false);
+  
+  // Sync status state
+  const { checkSyncStatus } = useCheckSyncStatus();
+  const { syncMissingReviews } = useSyncMissingReviews();
+  const [syncStatus, setSyncStatus] = useState<SyncStatusResponse | null>(null);
+  const [showSyncDialog, setShowSyncDialog] = useState(false);
+  const [checkingSyncStatus, setCheckingSyncStatus] = useState(false);
+  const [syncingLocation, setSyncingLocation] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -46,6 +56,92 @@ const Dashboard = () => {
     };
     init();
   }, [navigate, toast]);
+
+  const handleCheckSyncStatus = async () => {
+    setCheckingSyncStatus(true);
+    try {
+      const status = await checkSyncStatus();
+      setSyncStatus(status);
+      setShowSyncDialog(true);
+      
+      toast({
+        title: "Sync status checked",
+        description: `${status.summary.needs_sync} of ${status.summary.total_locations} locations need syncing`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error checking sync status",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setCheckingSyncStatus(false);
+    }
+  };
+
+  const handleSyncLocation = async (locationId: string, locationName: string) => {
+    setSyncingLocation(true);
+    try {
+      const result = await syncMissingReviews([locationId]);
+      
+      toast({
+        title: "Location synced",
+        description: `Synced ${result.newReviewsCount || 0} new reviews for ${locationName}`,
+      });
+      
+      // Refresh sync status
+      const newStatus = await checkSyncStatus();
+      setSyncStatus(newStatus);
+      queryClient.invalidateQueries({ queryKey: ["reviews"] });
+    } catch (error: any) {
+      toast({
+        title: "Error syncing location",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingLocation(false);
+    }
+  };
+
+  const handleSyncMissingReviews = async () => {
+    if (!syncStatus) return;
+    
+    const locationsNeedingSync = syncStatus.locations
+      .filter(loc => loc.status === 'incomplete')
+      .map(loc => loc.google_location_id);
+    
+    if (locationsNeedingSync.length === 0) {
+      toast({
+        title: "All caught up",
+        description: "All locations are already synced",
+      });
+      return;
+    }
+
+    setFetchingReviews(true);
+    try {
+      const result = await syncMissingReviews(locationsNeedingSync);
+      
+      toast({
+        title: result.partial ? "Partial sync completed" : "Sync completed",
+        description: result.message || `Synced ${result.newReviewsCount || 0} new reviews`,
+      });
+      
+      // Refresh sync status
+      const newStatus = await checkSyncStatus();
+      setSyncStatus(newStatus);
+      queryClient.invalidateQueries({ queryKey: ["reviews"] });
+    } catch (error: any) {
+      toast({
+        title: "Error syncing reviews",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setFetchingReviews(false);
+    }
+  };
 
   const handleFetchReviews = async () => {
     setFetchingReviews(true);
@@ -394,7 +490,27 @@ const Dashboard = () => {
     <Layout>
       <div className="flex h-16 items-center justify-between border-b border-border px-8">
         <h2>Dashboard</h2>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleCheckSyncStatus}
+            disabled={checkingSyncStatus}
+          >
+            <BarChart3 className={`h-4 w-4 ${checkingSyncStatus ? 'animate-spin' : ''}`} />
+            Check Sync Status
+          </Button>
+          {syncStatus && syncStatus.summary.needs_sync > 0 && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleSyncMissingReviews}
+              disabled={fetchingReviews}
+            >
+              <RefreshCw className={`h-4 w-4 ${fetchingReviews ? 'animate-spin' : ''}`} />
+              Sync Missing Reviews
+            </Button>
+          )}
           <Button 
             variant="outline" 
             size="sm"
@@ -402,10 +518,18 @@ const Dashboard = () => {
             disabled={fetchingReviews}
           >
             <RefreshCw className={`h-4 w-4 ${fetchingReviews ? 'animate-spin' : ''}`} />
-            Fetch Reviews from Google
+            Full Refresh
           </Button>
         </div>
       </div>
+
+      <SyncStatusDialog
+        open={showSyncDialog}
+        onOpenChange={setShowSyncDialog}
+        syncStatus={syncStatus}
+        onSyncLocation={handleSyncLocation}
+        syncing={syncingLocation}
+      />
 
       <div className="p-8">
         <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-3">

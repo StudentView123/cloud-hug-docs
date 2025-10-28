@@ -61,6 +61,12 @@ serve(async (req) => {
   try {
     console.log('=== FETCH REVIEWS STARTED ===');
     
+    // Parse request body for optional parameters
+    const body = await req.json().catch(() => ({}));
+    const targetLocationIds: string[] = body.location_ids || [];
+    const maxExecutionTime = 50000; // 50 seconds timeout protection
+    const startTime = Date.now();
+    
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       throw new Error('No authorization header');
@@ -144,11 +150,14 @@ serve(async (req) => {
 
     const allReviews = [];
     const allLocations = [];
+    const processedLocations = [];
     let foundLocationCount = 0;
     let foundReviewCount = 0;
     let updatedToArchivedTrue = 0;
     let updatedToArchivedFalse = 0;
     let insertedNew = 0;
+    let skippedFullySynced = 0;
+    let partialCompletion = false;
 
     for (const account of accounts) {
       console.log(`Processing account: ${account.name}`);
@@ -186,6 +195,36 @@ serve(async (req) => {
       console.log(`✓ Total locations for account: ${locations.length}`);
 
       for (const location of locations) {
+        // Check timeout
+        if (Date.now() - startTime > maxExecutionTime) {
+          console.log('⚠️ Approaching timeout limit, exiting gracefully...');
+          partialCompletion = true;
+          break;
+        }
+
+        // Skip if targeting specific locations and this isn't one of them
+        if (targetLocationIds.length > 0 && !targetLocationIds.includes(location.name)) {
+          console.log(`⊘ Skipping location (not in target list): ${location.title}`);
+          continue;
+        }
+
+        // Check if location is already 100% synced (when no target locations specified)
+        if (targetLocationIds.length === 0) {
+          const googleReviewCount = location.metadata?.newReviewCount || 0;
+          const { data: existingLoc } = await supabase
+            .from('locations')
+            .select('id, review_count')
+            .eq('google_location_id', location.name)
+            .eq('user_id', user.id)
+            .single();
+          
+          if (existingLoc && existingLoc.review_count >= googleReviewCount && googleReviewCount > 0) {
+            console.log(`✓ Skipping ${location.title} (already synced: ${existingLoc.review_count}/${googleReviewCount})`);
+            skippedFullySynced++;
+            continue;
+          }
+        }
+
         // Store location
         const { data: existingLocation } = await supabase
           .from('locations')
@@ -237,6 +276,13 @@ serve(async (req) => {
           const reviews = reviewsData.reviews || [];
           foundReviewCount += reviews.length;
           console.log(`✓ Found ${reviews.length} reviews for ${location.title || location.name}`);
+
+          // Track processed location
+          processedLocations.push({
+            name: location.title || location.name,
+            reviews_synced: reviews.length,
+            status: 'complete',
+          });
 
           for (const review of reviews) {
             // Strict boolean for reply status
@@ -334,18 +380,30 @@ serve(async (req) => {
     console.log(`✓ Completed: Found ${foundReviewCount} reviews from ${foundLocationCount} locations`);
     console.log(`✓ Inserted: ${insertedNew} new reviews, ${allLocations.length} new locations`);
     console.log(`✓ Updated: ${updatedToArchivedTrue} archived (replied), ${updatedToArchivedFalse} unarchived (no reply)`);
+    if (skippedFullySynced > 0) {
+      console.log(`✓ Skipped: ${skippedFullySynced} fully synced locations`);
+    }
 
     return new Response(
       JSON.stringify({ 
         success: true,
+        partial: partialCompletion,
         reviews: allReviews,
         locations: allLocations,
+        locations_processed: processedLocations,
+        completed_locations: processedLocations.length,
+        skipped_locations: skippedFullySynced,
         newReviewsCount: insertedNew,
         newLocationsCount: allLocations.length,
         foundReviewCount,
         foundLocationCount,
         updatedToArchivedTrue,
         updatedToArchivedFalse,
+        message: partialCompletion 
+          ? 'Partial sync completed (timeout protection). Run again to continue.'
+          : skippedFullySynced > 0 
+            ? `Synced successfully. ${skippedFullySynced} locations already up to date.`
+            : 'All reviews synced successfully.',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
