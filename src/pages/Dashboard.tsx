@@ -4,7 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Star, ThumbsUp, AlertCircle, RefreshCw, Send, Edit2, Check, ArrowUpDown } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Star, ThumbsUp, AlertCircle, RefreshCw, Send, Edit2, Check, ArrowUpDown, CheckSquare, X } from "lucide-react";
 import { useReviews, useFetchReviews } from "@/hooks/useReviews";
 import { useLocations } from "@/hooks/useLocations";
 import { useEffect, useState } from "react";
@@ -29,6 +30,10 @@ const Dashboard = () => {
   const [editedContent, setEditedContent] = useState<Record<string, string>>({});
   const [selectedLocationId, setSelectedLocationId] = useState<string>("all");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [selectedReviewIds, setSelectedReviewIds] = useState<Set<string>>(new Set());
+  const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [bulkPosting, setBulkPosting] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -211,6 +216,164 @@ const Dashboard = () => {
     }
   };
 
+  // Helper functions for bulk actions
+  const toggleReviewSelection = (reviewId: string) => {
+    setSelectedReviewIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(reviewId)) {
+        newSet.delete(reviewId);
+      } else {
+        newSet.add(reviewId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAll = () => {
+    if (filteredReviews) {
+      setSelectedReviewIds(new Set(filteredReviews.map(r => r.id)));
+    }
+  };
+
+  const deselectAll = () => {
+    setSelectedReviewIds(new Set());
+  };
+
+  const getSelectedReviewsWithoutReplies = () => {
+    return filteredReviews?.filter(r => 
+      selectedReviewIds.has(r.id) && (!r.replies || r.replies.length === 0)
+    ) || [];
+  };
+
+  const getSelectedReviewsWithDraftReplies = () => {
+    return filteredReviews?.filter(r => 
+      selectedReviewIds.has(r.id) && 
+      r.replies && 
+      r.replies.length > 0 && 
+      r.replies[0].status === "draft"
+    ) || [];
+  };
+
+  const handleBulkGenerateReplies = async () => {
+    const reviewsToGenerate = getSelectedReviewsWithoutReplies();
+    if (reviewsToGenerate.length === 0) {
+      toast({
+        title: "No reviews to process",
+        description: "Selected reviews already have replies",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setBulkGenerating(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < reviewsToGenerate.length; i++) {
+      const review = reviewsToGenerate[i];
+      try {
+        toast({
+          title: "Generating replies",
+          description: `Processing ${i + 1} of ${reviewsToGenerate.length}...`,
+        });
+
+        const { data, error } = await supabase.functions.invoke("generate-reply", {
+          body: { 
+            reviewId: review.id, 
+            reviewText: review.text || "", 
+            rating: review.rating 
+          },
+          headers: {
+            Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ''}`,
+          },
+        });
+
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        
+        successCount++;
+      } catch (error: any) {
+        failCount++;
+        console.error(`Failed to generate reply for review ${review.id}:`, error);
+      }
+    }
+
+    setBulkGenerating(false);
+    queryClient.invalidateQueries({ queryKey: ["reviews"] });
+    
+    toast({
+      title: "Bulk generation complete",
+      description: `Generated ${successCount} of ${reviewsToGenerate.length} replies successfully${failCount > 0 ? `. ${failCount} failed.` : ''}`,
+      variant: failCount > 0 ? "destructive" : "default",
+    });
+    
+    deselectAll();
+    setIsBulkMode(false);
+  };
+
+  const handleBulkPostReplies = async () => {
+    const reviewsToPost = getSelectedReviewsWithDraftReplies();
+    if (reviewsToPost.length === 0) {
+      toast({
+        title: "No replies to post",
+        description: "Selected reviews don't have draft replies",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setBulkPosting(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < reviewsToPost.length; i++) {
+      const review = reviewsToPost[i];
+      const reply = review.replies![0];
+      
+      try {
+        toast({
+          title: "Posting replies",
+          description: `Processing ${i + 1} of ${reviewsToPost.length}...`,
+        });
+
+        const { data, error } = await supabase.functions.invoke("post-reply", {
+          body: { 
+            replyId: reply.id, 
+            reviewId: review.id 
+          },
+          headers: {
+            Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ''}`,
+          },
+        });
+
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        
+        successCount++;
+        
+        // Add small delay to avoid rate limiting
+        if (i < reviewsToPost.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      } catch (error: any) {
+        failCount++;
+        console.error(`Failed to post reply for review ${review.id}:`, error);
+      }
+    }
+
+    setBulkPosting(false);
+    queryClient.invalidateQueries({ queryKey: ["reviews"] });
+    
+    toast({
+      title: "Bulk posting complete",
+      description: `Posted ${successCount} of ${reviewsToPost.length} replies successfully${failCount > 0 ? `. ${failCount} failed.` : ''}`,
+      variant: failCount > 0 ? "destructive" : "default",
+    });
+    
+    deselectAll();
+    setIsBulkMode(false);
+  };
+
   const filteredReviews = reviews
     ?.filter(r => selectedLocationId === "all" || r.location_id === selectedLocationId)
     ?.filter(r => !showOnlyNeedsReply || !r.replies || r.replies.length === 0)
@@ -331,15 +494,97 @@ const Dashboard = () => {
                 >
                   {showOnlyNeedsReply ? "Show All" : "Show Needs Reply"}
                 </Button>
+                
+                <Button
+                  variant={isBulkMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setIsBulkMode(!isBulkMode);
+                    if (isBulkMode) {
+                      deselectAll();
+                    }
+                  }}
+                >
+                  <CheckSquare className="h-4 w-4 mr-2" />
+                  {isBulkMode ? "Exit Bulk Mode" : "Bulk Actions"}
+                </Button>
               </div>
             </div>
+
+            {/* Bulk Actions Bar */}
+            {isBulkMode && (
+              <Card className="p-4 bg-primary/5 border-primary/20">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <p className="text-sm font-medium">
+                      {selectedReviewIds.size} review{selectedReviewIds.size !== 1 ? 's' : ''} selected
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={selectedReviewIds.size === filteredReviews?.length ? deselectAll : selectAll}
+                    >
+                      {selectedReviewIds.size === filteredReviews?.length ? "Deselect All" : "Select All"}
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={handleBulkGenerateReplies}
+                      disabled={bulkGenerating || bulkPosting || getSelectedReviewsWithoutReplies().length === 0}
+                    >
+                      <RefreshCw className={`h-4 w-4 mr-2 ${bulkGenerating ? 'animate-spin' : ''}`} />
+                      Generate Replies ({getSelectedReviewsWithoutReplies().length})
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={handleBulkPostReplies}
+                      disabled={bulkGenerating || bulkPosting || getSelectedReviewsWithDraftReplies().length === 0}
+                    >
+                      <Send className={`h-4 w-4 mr-2 ${bulkPosting ? 'animate-spin' : ''}`} />
+                      Post Replies ({getSelectedReviewsWithDraftReplies().length})
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setIsBulkMode(false);
+                        deselectAll();
+                      }}
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
             {filteredReviews?.map((review) => {
               const existingReply = review.replies?.[0];
               const timeAgo = formatDistanceToNow(new Date(review.review_created_at), { addSuffix: true });
+              const isSelected = selectedReviewIds.has(review.id);
               
               return (
-                <Card key={review.id} className="p-6">
+                <Card 
+                  key={review.id} 
+                  className={`p-6 transition-all ${isSelected ? 'ring-2 ring-primary' : ''} ${isBulkMode ? 'cursor-pointer hover:bg-accent/5' : ''}`}
+                  onClick={() => isBulkMode && toggleReviewSelection(review.id)}
+                >
                   <div className="space-y-4">
+                    {/* Bulk Mode Checkbox */}
+                    {isBulkMode && (
+                      <div className="flex items-center gap-3 pb-2 border-b">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleReviewSelection(review.id)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          Select this review
+                        </span>
+                      </div>
+                    )}
                     {/* Review Header */}
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -432,34 +677,35 @@ const Dashboard = () => {
                               </>
                             ) : (
                               <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setEditingReply(existingReply.id);
-                                    setEditedContent(prev => ({ ...prev, [existingReply.id]: existingReply.content }));
-                                  }}
-                                >
-                                  <Edit2 className="h-4 w-4" />
-                                  Edit
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handlePostReply(existingReply.id, review.id)}
-                                  disabled={postingReply === existingReply.id}
-                                >
-                                  {postingReply === existingReply.id ? (
-                                    <>
-                                      <RefreshCw className="h-4 w-4 animate-spin" />
-                                      Posting...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Send className="h-4 w-4" />
-                                      Post to Google
-                                    </>
-                                  )}
-                                </Button>
+                                 <Button
+                                   size="sm"
+                                   variant="outline"
+                                   onClick={() => {
+                                     setEditingReply(existingReply.id);
+                                     setEditedContent(prev => ({ ...prev, [existingReply.id]: existingReply.content }));
+                                   }}
+                                   disabled={isBulkMode}
+                                 >
+                                   <Edit2 className="h-4 w-4" />
+                                   Edit
+                                 </Button>
+                                 <Button
+                                   size="sm"
+                                   onClick={() => handlePostReply(existingReply.id, review.id)}
+                                   disabled={postingReply === existingReply.id || isBulkMode}
+                                 >
+                                   {postingReply === existingReply.id ? (
+                                     <>
+                                       <RefreshCw className="h-4 w-4 animate-spin" />
+                                       Posting...
+                                     </>
+                                   ) : (
+                                     <>
+                                       <Send className="h-4 w-4" />
+                                       Post to Google
+                                     </>
+                                   )}
+                                 </Button>
                               </>
                             )}
                           </div>
@@ -476,7 +722,7 @@ const Dashboard = () => {
                         <Button 
                           size="sm"
                           onClick={() => handleGenerateReply(review.id, review.text || "", review.rating)}
-                          disabled={generatingReply === review.id}
+                          disabled={generatingReply === review.id || isBulkMode}
                         >
                           {generatingReply === review.id ? (
                             <>
