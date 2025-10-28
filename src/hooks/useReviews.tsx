@@ -38,6 +38,7 @@ export const useReviews = () => {
           location:locations(id, name, address),
           replies(id, content, status, is_ai_generated, created_at, posted_at)
         `)
+        .eq('archived', false)
         .order("review_created_at", { ascending: false });
 
       if (error) throw error;

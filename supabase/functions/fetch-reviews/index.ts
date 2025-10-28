@@ -236,14 +236,27 @@ serve(async (req) => {
           console.log(`✓ Found ${reviews.length} reviews for ${location.title || location.name}`);
 
           for (const review of reviews) {
+            const hasGoogleReply = review.reviewReply && review.reviewReply.comment;
+            
             const { data: existingReview } = await supabase
               .from('reviews')
-              .select('id')
+              .select('id, has_google_reply')
               .eq('google_review_id', review.name || review.reviewId)
-              .single();
+              .maybeSingle();
 
-            if (!existingReview && locationId) {
-              // v4 API returns numeric starRating (1-5)
+            if (existingReview) {
+              // Update existing review if Google reply status changed
+              if (existingReview.has_google_reply !== hasGoogleReply) {
+                await supabase
+                  .from('reviews')
+                  .update({ 
+                    has_google_reply: hasGoogleReply,
+                    archived: hasGoogleReply
+                  })
+                  .eq('id', existingReview.id);
+              }
+            } else if (!hasGoogleReply && locationId) {
+              // Only insert NEW unanswered reviews
               const rating = typeof review.starRating === 'number' ? review.starRating : 
                              review.starRating === 'FIVE' ? 5 : 
                              review.starRating === 'FOUR' ? 4 : 
@@ -260,12 +273,15 @@ serve(async (req) => {
                   rating,
                   text: review.comment,
                   review_created_at: review.createTime,
+                  has_google_reply: false,
+                  archived: false,
                 })
                 .select()
                 .single();
               
               if (newReview) allReviews.push(newReview);
             }
+            // Reviews with Google replies are skipped (not imported)
           }
 
           nextPageToken = reviewsData.nextPageToken || null;

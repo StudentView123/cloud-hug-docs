@@ -24,7 +24,7 @@ const Dashboard = () => {
   const queryClient = useQueryClient();
   const [fetchingReviews, setFetchingReviews] = useState(false);
   const [generatingReply, setGeneratingReply] = useState<string | null>(null);
-  const [showOnlyNeedsReply, setShowOnlyNeedsReply] = useState(false);
+  
   const [postingReply, setPostingReply] = useState<string | null>(null);
   const [editingReply, setEditingReply] = useState<string | null>(null);
   const [editedContent, setEditedContent] = useState<Record<string, string>>({});
@@ -378,7 +378,6 @@ const Dashboard = () => {
   const filteredReviews = reviews
     ?.filter(r => selectedLocationId === "all" || r.location_id === selectedLocationId)
     ?.filter(r => selectedRating === "all" || r.rating === parseInt(selectedRating))
-    ?.filter(r => !showOnlyNeedsReply || !r.replies || r.replies.length === 0)
     ?.sort((a, b) => {
       const dateA = new Date(a.review_created_at).getTime();
       const dateB = new Date(b.review_created_at).getTime();
@@ -386,7 +385,7 @@ const Dashboard = () => {
     });
 
   const positiveReviews = reviews?.filter(r => r.sentiment === "positive").length || 0;
-  const pendingReplies = reviews?.filter(r => !r.replies || r.replies.length === 0).length || 0;
+  const unansweredReviews = reviews?.length || 0;
   const averageRating = reviews?.length 
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
     : "0.0";
@@ -428,8 +427,8 @@ const Dashboard = () => {
                 <AlertCircle className="h-5 w-5 text-warning" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Pending Replies</p>
-                <p className="text-2xl font-semibold">{pendingReplies}</p>
+                <p className="text-sm text-muted-foreground">Unanswered Reviews</p>
+                <p className="text-2xl font-semibold">{unansweredReviews}</p>
               </div>
             </div>
           </Card>
@@ -453,10 +452,13 @@ const Dashboard = () => {
           </div>
         ) : !reviews || reviews.length === 0 ? (
           <Card className="p-12 text-center">
-            <p className="text-muted-foreground mb-4">No reviews yet. Click "Fetch Reviews from Google" to get started.</p>
-            <Button onClick={handleFetchReviews} disabled={fetchingReviews}>
-              <RefreshCw className={`h-4 w-4 ${fetchingReviews ? 'animate-spin' : ''}`} />
-              Fetch Reviews
+            <h3 className="text-lg font-semibold mb-2">All caught up! 🎉</h3>
+            <p className="text-muted-foreground mb-4">
+              No unanswered reviews. Replied reviews are automatically archived.
+            </p>
+            <Button onClick={handleFetchReviews} disabled={fetchingReviews} variant="outline">
+              <RefreshCw className={`h-4 w-4 mr-2 ${fetchingReviews ? 'animate-spin' : ''}`} />
+              Check for New Reviews
             </Button>
           </Card>
         ) : (
@@ -501,14 +503,6 @@ const Dashboard = () => {
                 >
                   <ArrowUpDown className="h-4 w-4 mr-2" />
                   {sortOrder === "newest" ? "Newest First" : "Oldest First"}
-                </Button>
-                
-                <Button
-                  variant={showOnlyNeedsReply ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setShowOnlyNeedsReply(!showOnlyNeedsReply)}
-                >
-                  {showOnlyNeedsReply ? "Show All" : "Show Needs Reply"}
                 </Button>
                 
                 <Button

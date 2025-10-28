@@ -1,10 +1,11 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, MapPin, Activity, Settings } from "lucide-react";
+import { LayoutDashboard, MapPin, Activity, Settings, Archive } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Locations", href: "/locations", icon: MapPin },
+  { name: "Archive", href: "/archive", icon: Archive },
   { name: "Activity Log", href: "/activity-log", icon: Activity },
   { name: "Settings", href: "/settings", icon: Settings },
 ];

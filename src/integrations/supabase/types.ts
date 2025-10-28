@@ -183,10 +183,12 @@ export type Database = {
       }
       reviews: {
         Row: {
+          archived: boolean | null
           author_name: string
           author_photo_url: string | null
           created_at: string
           google_review_id: string
+          has_google_reply: boolean | null
           id: string
           location_id: string
           rating: number
@@ -196,10 +198,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived?: boolean | null
           author_name: string
           author_photo_url?: string | null
           created_at?: string
           google_review_id: string
+          has_google_reply?: boolean | null
           id?: string
           location_id: string
           rating: number
@@ -209,10 +213,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived?: boolean | null
           author_name?: string
           author_photo_url?: string | null
           created_at?: string
           google_review_id?: string
+          has_google_reply?: boolean | null
           id?: string
           location_id?: string
           rating?: number

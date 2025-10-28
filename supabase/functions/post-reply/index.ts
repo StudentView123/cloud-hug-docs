@@ -164,6 +164,15 @@ serve(async (req) => {
       throw updateError;
     }
 
+    // Archive the review since it now has a reply
+    await supabase
+      .from('reviews')
+      .update({ 
+        has_google_reply: true,
+        archived: true 
+      })
+      .eq('id', reviewId);
+
     // Log activity
     await supabase.from('activity_logs').insert({
       user_id: user.id,
