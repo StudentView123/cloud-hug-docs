@@ -30,6 +30,7 @@ const Dashboard = () => {
   const [editedContent, setEditedContent] = useState<Record<string, string>>({});
   const [selectedLocationId, setSelectedLocationId] = useState<string>("all");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const [selectedRating, setSelectedRating] = useState<string>("all");
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [selectedReviewIds, setSelectedReviewIds] = useState<Set<string>>(new Set());
   const [bulkGenerating, setBulkGenerating] = useState(false);
@@ -376,6 +377,7 @@ const Dashboard = () => {
 
   const filteredReviews = reviews
     ?.filter(r => selectedLocationId === "all" || r.location_id === selectedLocationId)
+    ?.filter(r => selectedRating === "all" || r.rating === parseInt(selectedRating))
     ?.filter(r => !showOnlyNeedsReply || !r.replies || r.replies.length === 0)
     ?.sort((a, b) => {
       const dateA = new Date(a.review_created_at).getTime();
@@ -475,6 +477,20 @@ const Dashboard = () => {
                         {location.name}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+                
+                <Select value={selectedRating} onValueChange={setSelectedRating}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="All Ratings" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Ratings</SelectItem>
+                    <SelectItem value="5">⭐⭐⭐⭐⭐ (5 stars)</SelectItem>
+                    <SelectItem value="4">⭐⭐⭐⭐ (4 stars)</SelectItem>
+                    <SelectItem value="3">⭐⭐⭐ (3 stars)</SelectItem>
+                    <SelectItem value="2">⭐⭐ (2 stars)</SelectItem>
+                    <SelectItem value="1">⭐ (1 star)</SelectItem>
                   </SelectContent>
                 </Select>
                 
