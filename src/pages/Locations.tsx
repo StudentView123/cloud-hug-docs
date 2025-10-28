@@ -24,9 +24,9 @@ const Locations = () => {
     checkSession();
   }, [navigate]);
   
-  // Get pending replies count for each location
-  const { data: pendingRepliesByLocation } = useQuery({
-    queryKey: ["pending-replies-by-location"],
+  // Get review counts for each location
+  const { data: reviewCountsByLocation } = useQuery({
+    queryKey: ["review-counts-by-location"],
     queryFn: async () => {
       const { data: reviews, error } = await supabase
         .from("reviews")
@@ -36,23 +36,31 @@ const Locations = () => {
           archived,
           has_google_reply,
           replies(id)
-        `)
-        .eq("archived", false);
+        `);
       
       if (error) throw error;
       
-      const pending: Record<string, number> = {};
+      const counts: Record<string, { total: number; pending: number }> = {};
       reviews?.forEach((review) => {
-        const hasAppReply = review.replies && review.replies.length > 0;
-        const hasGoogleReply = review.has_google_reply === true;
+        const locId = review.location_id;
+        if (!counts[locId]) {
+          counts[locId] = { total: 0, pending: 0 };
+        }
         
-        // Pending = not archived AND no reply from either source
-        if (!hasAppReply && !hasGoogleReply) {
-          pending[review.location_id] = (pending[review.location_id] || 0) + 1;
+        // Count all reviews (archived + active)
+        counts[locId].total++;
+        
+        // Count pending (not archived AND no reply from either source)
+        if (!review.archived) {
+          const hasAppReply = review.replies && review.replies.length > 0;
+          const hasGoogleReply = review.has_google_reply === true;
+          if (!hasAppReply && !hasGoogleReply) {
+            counts[locId].pending++;
+          }
         }
       });
       
-      return pending;
+      return counts;
     },
   });
 
@@ -78,7 +86,7 @@ const Locations = () => {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {locations.map((location) => {
-              const pendingCount = pendingRepliesByLocation?.[location.id] || 0;
+              const reviewStats = reviewCountsByLocation?.[location.id] || { total: 0, pending: 0 };
               
               return (
                 <Card key={location.id} className="p-6">
@@ -99,12 +107,12 @@ const Locations = () => {
                           </>
                         )}
                         <span className="text-sm text-muted-foreground">
-                          ({location.review_count || 0} reviews)
+                          ({reviewStats.total} reviews)
                         </span>
                       </div>
-                      {pendingCount > 0 && (
+                      {reviewStats.pending > 0 && (
                         <Badge variant="outline" className="border-warning text-warning">
-                          {pendingCount} pending
+                          {reviewStats.pending} pending
                         </Badge>
                       )}
                     </div>
