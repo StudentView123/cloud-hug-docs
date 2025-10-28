@@ -192,8 +192,8 @@ serve(async (req) => {
           locationId = existingLocation.id;
         }
 
-        // Fetch reviews using Business Account Management API with required read_mask
-        const reviewsUrl = `https://mybusinessaccountmanagement.googleapis.com/v1/${location.name}/reviews?readMask=name,reviewId,reviewer,starRating,comment,createTime`;
+        // Fetch reviews using Business Information API with required read_mask
+        const reviewsUrl = `https://mybusinessbusinessinformation.googleapis.com/v1/${location.name}/reviews?readMask=name,reviewId,reviewer,starRating,comment,createTime`;
         const reviewsResponse = await fetch(reviewsUrl, {
           headers: { Authorization: `Bearer ${accessToken}` }
         });
