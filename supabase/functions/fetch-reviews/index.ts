@@ -237,20 +237,25 @@ serve(async (req) => {
 
           for (const review of reviews) {
             const hasGoogleReply = review.reviewReply && review.reviewReply.comment;
+            const googleReplyContent = hasGoogleReply ? review.reviewReply.comment : null;
+            const googleReplyTime = hasGoogleReply ? review.reviewReply.updateTime : null;
             
             const { data: existingReview } = await supabase
               .from('reviews')
-              .select('id, has_google_reply')
+              .select('id, has_google_reply, google_reply_content')
               .eq('google_review_id', review.name || review.reviewId)
               .maybeSingle();
 
             if (existingReview) {
-              // Update existing review if Google reply status changed
-              if (existingReview.has_google_reply !== hasGoogleReply) {
+              // Update existing review if Google reply status or content changed
+              if (existingReview.has_google_reply !== hasGoogleReply || 
+                  existingReview.google_reply_content !== googleReplyContent) {
                 await supabase
                   .from('reviews')
                   .update({ 
                     has_google_reply: hasGoogleReply,
+                    google_reply_content: googleReplyContent,
+                    google_reply_time: googleReplyTime,
                     archived: hasGoogleReply
                   })
                   .eq('id', existingReview.id);

@@ -187,6 +187,8 @@ export type Database = {
           author_name: string
           author_photo_url: string | null
           created_at: string
+          google_reply_content: string | null
+          google_reply_time: string | null
           google_review_id: string
           has_google_reply: boolean | null
           id: string
@@ -202,6 +204,8 @@ export type Database = {
           author_name: string
           author_photo_url?: string | null
           created_at?: string
+          google_reply_content?: string | null
+          google_reply_time?: string | null
           google_review_id: string
           has_google_reply?: boolean | null
           id?: string
@@ -217,6 +221,8 @@ export type Database = {
           author_name?: string
           author_photo_url?: string | null
           created_at?: string
+          google_reply_content?: string | null
+          google_reply_time?: string | null
           google_review_id?: string
           has_google_reply?: boolean | null
           id?: string

@@ -12,6 +12,9 @@ export interface Review {
   sentiment: string | null;
   review_created_at: string;
   created_at: string;
+  google_reply_content: string | null;
+  google_reply_time: string | null;
+  has_google_reply: boolean;
   location?: {
     id: string;
     name: string;

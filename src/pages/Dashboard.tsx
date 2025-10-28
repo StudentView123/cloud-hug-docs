@@ -638,8 +638,27 @@ const Dashboard = () => {
                       <p className="text-foreground">{review.text}</p>
                     )}
 
-                    {/* AI Reply */}
-                    {existingReply ? (
+                    {/* Reply Section */}
+                    {review.google_reply_content ? (
+                      // Show Google reply if it exists
+                      <div className="rounded-lg bg-secondary p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Google Reply
+                          </p>
+                          <Badge variant="outline" className="border-success text-success">
+                            Posted on Google
+                          </Badge>
+                        </div>
+                        <p className="text-sm">{review.google_reply_content}</p>
+                        {review.google_reply_time && (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Posted {formatDistanceToNow(new Date(review.google_reply_time), { addSuffix: true })}
+                          </p>
+                        )}
+                      </div>
+                    ) : existingReply ? (
+                      // Show local reply if exists
                       <div className="rounded-lg bg-secondary p-4">
                         <div className="flex items-center justify-between mb-2">
                           <p className="text-sm font-medium text-muted-foreground">
@@ -727,6 +746,7 @@ const Dashboard = () => {
                         )}
                       </div>
                     ) : (
+                      // Show generate button if no reply exists
                       <div className="rounded-lg border border-dashed border-border p-4 text-center">
                         <p className="text-sm text-muted-foreground mb-3">No reply generated yet</p>
                         <Button 
