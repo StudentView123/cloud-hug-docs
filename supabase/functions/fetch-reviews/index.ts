@@ -195,8 +195,8 @@ serve(async (req) => {
           locationId = existingLocation.id;
         }
 
-        // Fetch reviews using legacy v4 API (accounts/{accountId}/locations/{locationId}/reviews)
-        const reviewsUrl = `https://mybusiness.googleapis.com/v4/${account.name}/${location.name}/reviews?pageSize=100`;
+        // Fetch reviews using My Business Business Information API
+        const reviewsUrl = `https://mybusinessbusinessinformation.googleapis.com/v1/${location.name}/reviews?pageSize=100`;
         let nextPageToken: string | null = null;
         
         do {
@@ -208,6 +208,7 @@ serve(async (req) => {
           if (!reviewsResponse.ok) {
             const errorBody = await reviewsResponse.text();
             console.error('Reviews API error:', reviewsResponse.status);
+            console.error('Attempted URL:', paginatedUrl);
             console.error('Reviews API error body:', errorBody);
             const structuredError = createStructuredError(reviewsResponse.status, errorBody, "reviews");
             console.error('Structured error:', JSON.stringify(structuredError, null, 2));
