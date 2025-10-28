@@ -20,6 +20,7 @@ const Dashboard = () => {
   const queryClient = useQueryClient();
   const [fetchingReviews, setFetchingReviews] = useState(false);
   const [generatingReply, setGeneratingReply] = useState<string | null>(null);
+  const [showOnlyNeedsReply, setShowOnlyNeedsReply] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -115,6 +116,10 @@ const Dashboard = () => {
     }
   };
 
+  const filteredReviews = showOnlyNeedsReply 
+    ? reviews?.filter(r => !r.replies || r.replies.length === 0)
+    : reviews;
+
   const positiveReviews = reviews?.filter(r => r.sentiment === "positive").length || 0;
   const pendingReplies = reviews?.filter(r => !r.replies || r.replies.length === 0).length || 0;
   const averageRating = reviews?.length 
@@ -191,7 +196,19 @@ const Dashboard = () => {
           </Card>
         ) : (
           <div className="space-y-4">
-            {reviews.map((review) => {
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm text-muted-foreground">
+                Showing {filteredReviews?.length || 0} of {reviews.length} reviews
+              </p>
+              <Button
+                variant={showOnlyNeedsReply ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowOnlyNeedsReply(!showOnlyNeedsReply)}
+              >
+                {showOnlyNeedsReply ? "Show All" : "Show Needs Reply"}
+              </Button>
+            </div>
+            {filteredReviews?.map((review) => {
               const existingReply = review.replies?.[0];
               const timeAgo = formatDistanceToNow(new Date(review.review_created_at), { addSuffix: true });
               

@@ -5,9 +5,24 @@ import { Star, MapPin, RefreshCw } from "lucide-react";
 import { useLocations } from "@/hooks/useLocations";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const Locations = () => {
+  const navigate = useNavigate();
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const { data: locations, isLoading } = useLocations();
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate('/login');
+      }
+      setCheckingAuth(false);
+    };
+    checkSession();
+  }, [navigate]);
   
   // Get pending replies count for each location
   const { data: pendingRepliesByLocation } = useQuery({
@@ -45,7 +60,7 @@ const Locations = () => {
           Your Google Business Profile locations
         </p>
         
-        {isLoading ? (
+        {checkingAuth || isLoading ? (
           <div className="flex items-center justify-center py-12">
             <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>

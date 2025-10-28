@@ -195,8 +195,8 @@ serve(async (req) => {
           locationId = existingLocation.id;
         }
 
-        // Fetch reviews using My Business Business Information API
-        const reviewsUrl = `https://mybusinessbusinessinformation.googleapis.com/v1/${location.name}/reviews?pageSize=100`;
+        // Fetch reviews using Google My Business API v4
+        const reviewsUrl = `https://mybusiness.googleapis.com/v4/${account.name}/${location.name}/reviews?pageSize=100`;
         let nextPageToken: string | null = null;
         
         do {
