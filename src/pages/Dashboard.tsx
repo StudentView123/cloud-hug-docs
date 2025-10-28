@@ -100,12 +100,27 @@ const Dashboard = () => {
 
       if (error) throw error;
 
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
       toast({
         title: "Reply generated",
         description: "AI has generated a reply for this review",
       });
       queryClient.invalidateQueries({ queryKey: ["reviews"] });
     } catch (error: any) {
+      // Handle session expiration
+      if (error.message?.includes('Not authenticated') || error.status === 401) {
+        toast({
+          title: "Session expired",
+          description: "Your session expired. Please log in again.",
+          variant: "destructive",
+        });
+        navigate('/login');
+        return;
+      }
+      
       toast({
         title: "Error generating reply",
         description: error.message,
