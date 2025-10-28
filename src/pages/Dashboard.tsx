@@ -3,8 +3,10 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Star, ThumbsUp, AlertCircle, RefreshCw, Send, Edit2, Check } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Star, ThumbsUp, AlertCircle, RefreshCw, Send, Edit2, Check, ArrowUpDown } from "lucide-react";
 import { useReviews, useFetchReviews } from "@/hooks/useReviews";
+import { useLocations } from "@/hooks/useLocations";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 const Dashboard = () => {
   const navigate = useNavigate();
   const { data: reviews, isLoading } = useReviews();
+  const { data: locations } = useLocations();
   const { fetchReviews } = useFetchReviews();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -24,6 +27,8 @@ const Dashboard = () => {
   const [postingReply, setPostingReply] = useState<string | null>(null);
   const [editingReply, setEditingReply] = useState<string | null>(null);
   const [editedContent, setEditedContent] = useState<Record<string, string>>({});
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("all");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
 
   useEffect(() => {
     const init = async () => {
@@ -206,9 +211,14 @@ const Dashboard = () => {
     }
   };
 
-  const filteredReviews = showOnlyNeedsReply 
-    ? reviews?.filter(r => !r.replies || r.replies.length === 0)
-    : reviews;
+  const filteredReviews = reviews
+    ?.filter(r => selectedLocationId === "all" || r.location_id === selectedLocationId)
+    ?.filter(r => !showOnlyNeedsReply || !r.replies || r.replies.length === 0)
+    ?.sort((a, b) => {
+      const dateA = new Date(a.review_created_at).getTime();
+      const dateB = new Date(b.review_created_at).getTime();
+      return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
+    });
 
   const positiveReviews = reviews?.filter(r => r.sentiment === "positive").length || 0;
   const pendingReplies = reviews?.filter(r => !r.replies || r.replies.length === 0).length || 0;
@@ -286,17 +296,42 @@ const Dashboard = () => {
           </Card>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
               <p className="text-sm text-muted-foreground">
                 Showing {filteredReviews?.length || 0} of {reviews.length} reviews
               </p>
-              <Button
-                variant={showOnlyNeedsReply ? "default" : "outline"}
-                size="sm"
-                onClick={() => setShowOnlyNeedsReply(!showOnlyNeedsReply)}
-              >
-                {showOnlyNeedsReply ? "Show All" : "Show Needs Reply"}
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="All Locations" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Locations</SelectItem>
+                    {locations?.map((location) => (
+                      <SelectItem key={location.id} value={location.id}>
+                        {location.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSortOrder(sortOrder === "newest" ? "oldest" : "newest")}
+                >
+                  <ArrowUpDown className="h-4 w-4 mr-2" />
+                  {sortOrder === "newest" ? "Newest First" : "Oldest First"}
+                </Button>
+                
+                <Button
+                  variant={showOnlyNeedsReply ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowOnlyNeedsReply(!showOnlyNeedsReply)}
+                >
+                  {showOnlyNeedsReply ? "Show All" : "Show Needs Reply"}
+                </Button>
+              </div>
             </div>
             {filteredReviews?.map((review) => {
               const existingReply = review.replies?.[0];
