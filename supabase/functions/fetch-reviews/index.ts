@@ -315,6 +315,19 @@ serve(async (req) => {
 
           nextPageToken = reviewsData.nextPageToken || null;
         } while (nextPageToken);
+
+        // Update review count for this location
+        if (locationId) {
+          const { count } = await supabase
+            .from('reviews')
+            .select('*', { count: 'exact', head: true })
+            .eq('location_id', locationId);
+
+          await supabase
+            .from('locations')
+            .update({ review_count: count || 0 })
+            .eq('id', locationId);
+        }
       }
     }
 

@@ -33,14 +33,21 @@ const Locations = () => {
         .select(`
           id,
           location_id,
+          archived,
+          has_google_reply,
           replies(id)
-        `);
+        `)
+        .eq("archived", false);
       
       if (error) throw error;
       
       const pending: Record<string, number> = {};
       reviews?.forEach((review) => {
-        if (!review.replies || review.replies.length === 0) {
+        const hasAppReply = review.replies && review.replies.length > 0;
+        const hasGoogleReply = review.has_google_reply === true;
+        
+        // Pending = not archived AND no reply from either source
+        if (!hasAppReply && !hasGoogleReply) {
           pending[review.location_id] = (pending[review.location_id] || 0) + 1;
         }
       });
