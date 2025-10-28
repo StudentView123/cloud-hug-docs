@@ -4,10 +4,11 @@ import { Layout } from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, RefreshCw, LogOut, AlertCircle, Shield } from "lucide-react";
+import { CheckCircle2, RefreshCw, LogOut, AlertCircle, Shield, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLocations } from "@/hooks/useLocations";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -16,7 +17,10 @@ const Settings = () => {
   const [hasGoogleTokens, setHasGoogleTokens] = useState<boolean>(false);
   const [diagnostics, setDiagnostics] = useState<any>(null);
   const [checkingConnection, setCheckingConnection] = useState(false);
-  const { data: locations, isLoading: locationsLoading } = useLocations();
+  const [locationDiagnostics, setLocationDiagnostics] = useState<any>(null);
+  const [listingLocations, setListingLocations] = useState(false);
+  const [syncingLocations, setSyncingLocations] = useState(false);
+  const { data: locations, isLoading: locationsLoading, refetch: refetchLocations } = useLocations();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -120,6 +124,76 @@ const Settings = () => {
     }
   };
 
+  const handleListLocations = async () => {
+    setListingLocations(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase.functions.invoke('list-locations', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+      setLocationDiagnostics(data);
+      
+      if (data.missingInDb?.length > 0) {
+        toast({
+          title: "Location Mismatch Found",
+          description: `Google: ${data.googleLocationCount} | In app: ${data.dbLocationCount}. ${data.missingInDb.length} missing.`,
+        });
+      } else {
+        toast({
+          title: "Locations in Sync",
+          description: `All ${data.googleLocationCount} Google locations are in your app.`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Failed to List Locations",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setListingLocations(false);
+    }
+  };
+
+  const handleSyncLocations = async () => {
+    setSyncingLocations(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase.functions.invoke('sync-locations', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+      
+      toast({
+        title: "Locations Synced",
+        description: `Added ${data.syncedCount} missing location${data.syncedCount === 1 ? '' : 's'} to your app.`,
+      });
+
+      // Refetch locations and clear diagnostics
+      await refetchLocations();
+      setLocationDiagnostics(null);
+    } catch (error) {
+      toast({
+        title: "Sync Failed",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingLocations(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
@@ -170,24 +244,48 @@ const Settings = () => {
                       Active
                     </Badge>
                   </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      className="flex-1"
-                      onClick={handleCheckConnection}
-                      disabled={checkingConnection}
-                    >
-                      <Shield className={`mr-2 h-4 w-4 ${checkingConnection ? 'animate-spin' : ''}`} />
-                      Check Connection
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className="flex-1"
-                      onClick={handleReconnectGoogle}
-                    >
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Reconnect
-                    </Button>
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={handleCheckConnection}
+                        disabled={checkingConnection}
+                      >
+                        <Shield className={`mr-2 h-4 w-4 ${checkingConnection ? 'animate-spin' : ''}`} />
+                        Check Connection
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={handleReconnectGoogle}
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Reconnect
+                      </Button>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={handleListLocations}
+                        disabled={listingLocations}
+                      >
+                        <MapPin className={`mr-2 h-4 w-4 ${listingLocations ? 'animate-spin' : ''}`} />
+                        List Locations (Diagnostics)
+                      </Button>
+                      {locationDiagnostics?.missingInDb?.length > 0 && (
+                        <Button 
+                          variant="default" 
+                          className="flex-1"
+                          onClick={handleSyncLocations}
+                          disabled={syncingLocations}
+                        >
+                          <RefreshCw className={`mr-2 h-4 w-4 ${syncingLocations ? 'animate-spin' : ''}`} />
+                          Sync Missing Locations
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   {diagnostics && (
                     <div className="mt-4 space-y-2 rounded-lg bg-muted p-4 text-sm">
@@ -302,6 +400,50 @@ const Settings = () => {
                             </details>
                           )}
                         </>
+                      )}
+                    </div>
+                  )}
+                  {locationDiagnostics && (
+                    <div className="mt-4 space-y-2 rounded-lg bg-muted p-4 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Google Locations:</span>
+                        <Badge variant="outline">{locationDiagnostics.googleLocationCount}</Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">In App:</span>
+                        <Badge variant="outline">{locationDiagnostics.dbLocationCount}</Badge>
+                      </div>
+                      {locationDiagnostics.missingInDb?.length > 0 && (
+                        <Collapsible className="mt-3">
+                          <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md bg-destructive/10 p-2 text-xs font-medium text-destructive hover:bg-destructive/20">
+                            <span>Missing {locationDiagnostics.missingInDb.length} location{locationDiagnostics.missingInDb.length === 1 ? '' : 's'}</span>
+                            <AlertCircle className="h-4 w-4" />
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="mt-2 space-y-2">
+                            {locationDiagnostics.missingInDb.map((loc: any, idx: number) => (
+                              <div key={idx} className="rounded-md border border-border bg-background p-2">
+                                <p className="font-medium text-xs">{loc.title}</p>
+                                <p className="text-xs text-muted-foreground">{loc.address}</p>
+                                <p className="text-xs text-muted-foreground mt-1">State: {loc.state}</p>
+                              </div>
+                            ))}
+                          </CollapsibleContent>
+                        </Collapsible>
+                      )}
+                      {locationDiagnostics.extraInDb?.length > 0 && (
+                        <Collapsible className="mt-3">
+                          <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md bg-muted p-2 text-xs font-medium hover:bg-muted/80">
+                            <span>Extra in DB (not in Google): {locationDiagnostics.extraInDb.length}</span>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="mt-2 space-y-2">
+                            {locationDiagnostics.extraInDb.map((loc: any, idx: number) => (
+                              <div key={idx} className="rounded-md border border-border bg-background p-2">
+                                <p className="font-medium text-xs">{loc.name}</p>
+                                <p className="text-xs text-muted-foreground">{loc.address}</p>
+                              </div>
+                            ))}
+                          </CollapsibleContent>
+                        </Collapsible>
                       )}
                     </div>
                   )}
