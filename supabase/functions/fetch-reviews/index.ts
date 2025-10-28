@@ -250,7 +250,7 @@ serve(async (req) => {
               // Update existing review if Google reply status or content changed
               if (existingReview.has_google_reply !== hasGoogleReply || 
                   existingReview.google_reply_content !== googleReplyContent) {
-                await supabase
+                const { error: updateError } = await supabase
                   .from('reviews')
                   .update({ 
                     has_google_reply: hasGoogleReply,
@@ -259,6 +259,12 @@ serve(async (req) => {
                     archived: hasGoogleReply
                   })
                   .eq('id', existingReview.id);
+                
+                if (updateError) {
+                  console.error(`⚠️ Failed to update review ${existingReview.id}:`, updateError.message);
+                } else {
+                  console.log(`✓ Updated review ${existingReview.id} - archived: ${hasGoogleReply}`);
+                }
               }
             } else if (locationId) {
               // Insert ALL reviews (both answered and unanswered)
