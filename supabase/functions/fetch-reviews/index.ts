@@ -150,22 +150,37 @@ serve(async (req) => {
     for (const account of accounts) {
       console.log(`Processing account: ${account.name}`);
       
-      // Fetch locations using Business Account Management API with required read_mask
-      const locationsUrl = `https://mybusinessaccountmanagement.googleapis.com/v1/${account.name}/locations?readMask=name,title,storefrontAddress`;
-      const locationsResponse = await fetch(locationsUrl, {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
+      // Fetch locations with pagination using Business Account Management API
+      const locationsBaseUrl = `https://mybusinessaccountmanagement.googleapis.com/v1/${account.name}/locations?readMask=name,title,storefrontAddress&pageSize=100`;
+      let allLocationsForAccount: any[] = [];
+      let locationsNextPageToken: string | null = null;
 
-      if (!locationsResponse.ok) {
-        const errorBody = await locationsResponse.text();
-        console.error('Locations API error:', locationsResponse.status, errorBody);
-        continue;
-      }
+      do {
+        const locationsUrl: string = locationsNextPageToken 
+          ? `${locationsBaseUrl}&pageToken=${locationsNextPageToken}` 
+          : locationsBaseUrl;
+        
+        const locationsResponse: Response = await fetch(locationsUrl, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
 
-      const locationsData = await locationsResponse.json();
-      const locations = locationsData.locations || [];
+        if (!locationsResponse.ok) {
+          const errorBody = await locationsResponse.text();
+          console.error('Locations API error:', locationsResponse.status, errorBody);
+          break; // Skip this account if error, but continue with others
+        }
+
+        const locationsData: any = await locationsResponse.json();
+        const pageLocations = locationsData.locations || [];
+        allLocationsForAccount.push(...pageLocations);
+        
+        locationsNextPageToken = locationsData.nextPageToken || null;
+        console.log(`✓ Fetched ${pageLocations.length} locations (page ${locationsNextPageToken ? 'has more' : 'complete'})`);
+      } while (locationsNextPageToken);
+
+      const locations = allLocationsForAccount;
       foundLocationCount += locations.length;
-      console.log(`✓ Found ${locations.length} locations`);
+      console.log(`✓ Total locations for account: ${locations.length}`);
 
       for (const location of locations) {
         // Store location
