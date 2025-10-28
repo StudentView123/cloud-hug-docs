@@ -144,6 +144,8 @@ serve(async (req) => {
 
     const allReviews = [];
     const allLocations = [];
+    let foundLocationCount = 0;
+    let foundReviewCount = 0;
 
     for (const account of accounts) {
       console.log(`Processing account: ${account.name}`);
@@ -162,6 +164,7 @@ serve(async (req) => {
 
       const locationsData = await locationsResponse.json();
       const locations = locationsData.locations || [];
+      foundLocationCount += locations.length;
       console.log(`✓ Found ${locations.length} locations`);
 
       for (const location of locations) {
@@ -192,58 +195,80 @@ serve(async (req) => {
           locationId = existingLocation.id;
         }
 
-        // Fetch reviews using Business Information API with required read_mask
-        const reviewsUrl = `https://mybusinessbusinessinformation.googleapis.com/v1/${location.name}/reviews?readMask=name,reviewId,reviewer,starRating,comment,createTime`;
-        const reviewsResponse = await fetch(reviewsUrl, {
-          headers: { Authorization: `Bearer ${accessToken}` }
-        });
+        // Fetch reviews using legacy v4 API (accounts/{accountId}/locations/{locationId}/reviews)
+        const reviewsUrl = `https://mybusiness.googleapis.com/v4/${account.name}/${location.name}/reviews?pageSize=100`;
+        let nextPageToken: string | null = null;
+        
+        do {
+          const paginatedUrl: string = nextPageToken ? `${reviewsUrl}&pageToken=${nextPageToken}` : reviewsUrl;
+          const reviewsResponse: Response = await fetch(paginatedUrl, {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          });
 
-        if (!reviewsResponse.ok) {
-          console.error('Reviews API error:', reviewsResponse.status);
-          continue;
-        }
-
-        const reviewsData = await reviewsResponse.json();
-        const reviews = reviewsData.reviews || [];
-        console.log(`✓ Found ${reviews.length} reviews`);
-
-        for (const review of reviews) {
-          const { data: existingReview } = await supabase
-            .from('reviews')
-            .select('id')
-            .eq('google_review_id', review.name || review.reviewId)
-            .single();
-
-          if (!existingReview && locationId) {
-            const { data: newReview } = await supabase
-              .from('reviews')
-              .insert({
-                location_id: locationId,
-                google_review_id: review.name || review.reviewId,
-                author_name: review.reviewer?.displayName || 'Anonymous',
-                author_photo_url: review.reviewer?.profilePhotoUrl,
-                rating: review.starRating === 'FIVE' ? 5 : review.starRating === 'FOUR' ? 4 : review.starRating === 'THREE' ? 3 : review.starRating === 'TWO' ? 2 : 1,
-                text: review.comment,
-                review_created_at: review.createTime,
-              })
-              .select()
-              .single();
-            
-            if (newReview) allReviews.push(newReview);
+          if (!reviewsResponse.ok) {
+            const errorBody = await reviewsResponse.text();
+            console.error('Reviews API error:', reviewsResponse.status);
+            console.error('Reviews API error body:', errorBody);
+            const structuredError = createStructuredError(reviewsResponse.status, errorBody, "reviews");
+            console.error('Structured error:', JSON.stringify(structuredError, null, 2));
+            break;
           }
-        }
+
+          const reviewsData: any = await reviewsResponse.json();
+          const reviews = reviewsData.reviews || [];
+          foundReviewCount += reviews.length;
+          console.log(`✓ Found ${reviews.length} reviews for ${location.title || location.name}`);
+
+          for (const review of reviews) {
+            const { data: existingReview } = await supabase
+              .from('reviews')
+              .select('id')
+              .eq('google_review_id', review.name || review.reviewId)
+              .single();
+
+            if (!existingReview && locationId) {
+              // v4 API returns numeric starRating (1-5)
+              const rating = typeof review.starRating === 'number' ? review.starRating : 
+                             review.starRating === 'FIVE' ? 5 : 
+                             review.starRating === 'FOUR' ? 4 : 
+                             review.starRating === 'THREE' ? 3 : 
+                             review.starRating === 'TWO' ? 2 : 1;
+
+              const { data: newReview } = await supabase
+                .from('reviews')
+                .insert({
+                  location_id: locationId,
+                  google_review_id: review.name || review.reviewId,
+                  author_name: review.reviewer?.displayName || 'Anonymous',
+                  author_photo_url: review.reviewer?.profilePhotoUrl,
+                  rating,
+                  text: review.comment,
+                  review_created_at: review.createTime,
+                })
+                .select()
+                .single();
+              
+              if (newReview) allReviews.push(newReview);
+            }
+          }
+
+          nextPageToken = reviewsData.nextPageToken || null;
+        } while (nextPageToken);
       }
     }
 
-    console.log(`✓ Completed: ${allReviews.length} reviews, ${allLocations.length} locations`);
+    console.log(`✓ Completed: Found ${foundReviewCount} reviews from ${foundLocationCount} locations`);
+    console.log(`✓ Inserted: ${allReviews.length} new reviews, ${allLocations.length} new locations`);
 
     return new Response(
       JSON.stringify({ 
         success: true,
         reviews: allReviews,
         locations: allLocations,
-        reviewsCount: allReviews.length,
-        locationsCount: allLocations.length,
+        newReviewsCount: allReviews.length,
+        newLocationsCount: allLocations.length,
+        foundReviewCount,
+        foundLocationCount,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
