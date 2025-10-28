@@ -160,20 +160,29 @@ const Archive = () => {
                         <p className="text-sm mb-4 text-foreground">{review.text}</p>
                       )}
 
-                      {/* Display Reply */}
-                      {reply && (
+                      {/* Display Reply - prioritize Google replies */}
+                      {(review.google_reply_content || reply) && (
                         <div className="mt-4 p-4 bg-muted rounded-lg">
                           <div className="flex items-center gap-2 mb-2">
                             <Badge variant="outline">
-                              {reply.is_ai_generated ? "AI Reply" : "Manual Reply"}
+                              {review.google_reply_content 
+                                ? "Google Reply" 
+                                : reply?.is_ai_generated 
+                                  ? "AI Reply" 
+                                  : "Manual Reply"}
                             </Badge>
-                            {reply.posted_at && (
+                            {(review.google_reply_time || reply?.posted_at) && (
                               <span className="text-xs text-muted-foreground">
-                                Posted {formatDistanceToNow(new Date(reply.posted_at), { addSuffix: true })}
+                                Posted {formatDistanceToNow(
+                                  new Date(review.google_reply_time || reply!.posted_at!), 
+                                  { addSuffix: true }
+                                )}
                               </span>
                             )}
                           </div>
-                          <p className="text-sm">{reply.content}</p>
+                          <p className="text-sm">
+                            {review.google_reply_content || reply?.content}
+                          </p>
                         </div>
                       )}
                     </div>
