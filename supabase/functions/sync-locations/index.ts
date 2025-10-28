@@ -96,7 +96,7 @@ serve(async (req) => {
     for (const account of accounts) {
       console.log(`Processing account: ${account.name}`);
       
-      const locationsBaseUrl = `https://mybusinessaccountmanagement.googleapis.com/v1/${account.name}/locations?readMask=name,title,storefrontAddress,locationState&pageSize=100`;
+      const locationsBaseUrl = `https://mybusinessaccountmanagement.googleapis.com/v1/${account.name}/locations?readMask=name,title,storefrontAddress&pageSize=100`;
       let nextPageToken: string | null = null;
 
       do {

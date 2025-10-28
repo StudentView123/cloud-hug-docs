@@ -96,7 +96,7 @@ serve(async (req) => {
     for (const account of accounts) {
       console.log(`Processing account: ${account.name}`);
       
-      const locationsBaseUrl = `https://mybusinessaccountmanagement.googleapis.com/v1/${account.name}/locations?readMask=name,title,storefrontAddress,locationState&pageSize=100`;
+      const locationsBaseUrl = `https://mybusinessaccountmanagement.googleapis.com/v1/${account.name}/locations?readMask=name,title,storefrontAddress&pageSize=100`;
       let nextPageToken: string | null = null;
 
       do {
@@ -114,7 +114,7 @@ serve(async (req) => {
           
           // Try fallback to Business Profile API
           console.log('Trying fallback to Business Profile API...');
-          const fallbackUrl = `https://mybusinessbusinessinformation.googleapis.com/v1/${account.name}/locations?readMask=name,title,storefrontAddress,locationState&pageSize=100`;
+          const fallbackUrl = `https://mybusinessbusinessinformation.googleapis.com/v1/${account.name}/locations?readMask=name,title,storefrontAddress&pageSize=100`;
           const fallbackResponse = await fetch(fallbackUrl, {
             headers: { Authorization: `Bearer ${accessToken}` }
           });
