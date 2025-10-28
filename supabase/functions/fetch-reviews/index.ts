@@ -240,7 +240,6 @@ serve(async (req) => {
                 .insert({
                   location_id: locationId,
                   google_review_id: review.name || review.reviewId,
-                  review_name: review.name, // Store full Google API review path
                   author_name: review.reviewer?.displayName || 'Anonymous',
                   author_photo_url: review.reviewer?.profilePhotoUrl,
                   rating,

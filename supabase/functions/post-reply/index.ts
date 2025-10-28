@@ -72,15 +72,15 @@ serve(async (req) => {
     // Get the review and its full Google API path
     const { data: review, error: reviewError } = await supabase
       .from('reviews')
-      .select('review_name')
+      .select('google_review_id')
       .eq('id', reviewId)
       .single();
 
-    if (reviewError || !review?.review_name) {
-      throw new Error('Review not found or missing review_name');
+    if (reviewError || !review?.google_review_id) {
+      throw new Error('Review not found or missing google_review_id');
     }
 
-    console.log('✓ Review found:', review.review_name);
+    console.log('✓ Review found:', review.google_review_id);
 
     // Get user's Google tokens
     const { data: profile, error: profileError } = await supabase
@@ -128,7 +128,7 @@ serve(async (req) => {
 
     // Post reply to Google My Business API
     console.log('Posting reply to Google...');
-    const googleApiUrl = `https://mybusiness.googleapis.com/v4/${review.review_name}/reply`;
+    const googleApiUrl = `https://mybusiness.googleapis.com/v4/${review.google_review_id}/reply`;
     const googleResponse = await fetch(googleApiUrl, {
       method: 'PUT',
       headers: {
