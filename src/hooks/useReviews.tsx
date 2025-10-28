@@ -58,9 +58,7 @@ export const useFetchReviews = () => {
     }
 
     const { data, error } = await supabase.functions.invoke("fetch-reviews", {
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-      },
+      body: {},
     });
     
     if (error) throw error;
