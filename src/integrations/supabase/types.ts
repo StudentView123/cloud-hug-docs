@@ -191,6 +191,7 @@ export type Database = {
           location_id: string
           rating: number
           review_created_at: string
+          review_name: string | null
           sentiment: string | null
           text: string | null
           updated_at: string
@@ -204,6 +205,7 @@ export type Database = {
           location_id: string
           rating: number
           review_created_at: string
+          review_name?: string | null
           sentiment?: string | null
           text?: string | null
           updated_at?: string
@@ -217,6 +219,7 @@ export type Database = {
           location_id?: string
           rating?: number
           review_created_at?: string
+          review_name?: string | null
           sentiment?: string | null
           text?: string | null
           updated_at?: string

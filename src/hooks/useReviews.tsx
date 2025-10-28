@@ -23,6 +23,7 @@ export interface Review {
     status: string;
     is_ai_generated: boolean;
     created_at: string;
+    posted_at: string | null;
   }>;
 }
 
@@ -35,7 +36,7 @@ export const useReviews = () => {
         .select(`
           *,
           location:locations(id, name, address),
-          replies(id, content, status, is_ai_generated, created_at)
+          replies(id, content, status, is_ai_generated, created_at, posted_at)
         `)
         .order("review_created_at", { ascending: false });
 

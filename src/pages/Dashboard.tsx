@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Star, ThumbsUp, AlertCircle, RefreshCw } from "lucide-react";
+import { Star, ThumbsUp, AlertCircle, RefreshCw, Send, Edit2, Check } from "lucide-react";
 import { useReviews, useFetchReviews } from "@/hooks/useReviews";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +21,9 @@ const Dashboard = () => {
   const [fetchingReviews, setFetchingReviews] = useState(false);
   const [generatingReply, setGeneratingReply] = useState<string | null>(null);
   const [showOnlyNeedsReply, setShowOnlyNeedsReply] = useState(false);
+  const [postingReply, setPostingReply] = useState<string | null>(null);
+  const [editingReply, setEditingReply] = useState<string | null>(null);
+  const [editedContent, setEditedContent] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const init = async () => {
@@ -128,6 +131,78 @@ const Dashboard = () => {
       });
     } finally {
       setGeneratingReply(null);
+    }
+  };
+
+  const handlePostReply = async (replyId: string, reviewId: string) => {
+    setPostingReply(replyId);
+    try {
+      const { data, error } = await supabase.functions.invoke("post-reply", {
+        body: { replyId, reviewId },
+        headers: {
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ''}`,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      toast({
+        title: "Reply posted",
+        description: "Your reply has been posted to Google Business Profile",
+      });
+      queryClient.invalidateQueries({ queryKey: ["reviews"] });
+    } catch (error: any) {
+      // Handle session expiration
+      if (error.message?.includes('Not authenticated') || error.status === 401) {
+        toast({
+          title: "Session expired",
+          description: "Your session expired. Please log in again.",
+          variant: "destructive",
+        });
+        navigate('/login');
+        return;
+      }
+      
+      toast({
+        title: "Error posting reply",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setPostingReply(null);
+    }
+  };
+
+  const handleSaveEdit = async (replyId: string, content: string) => {
+    try {
+      const { error } = await supabase
+        .from('replies')
+        .update({ content })
+        .eq('id', replyId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Reply updated",
+        description: "Your changes have been saved",
+      });
+      setEditingReply(null);
+      setEditedContent(prev => {
+        const newContent = { ...prev };
+        delete newContent[replyId];
+        return newContent;
+      });
+      queryClient.invalidateQueries({ queryKey: ["reviews"] });
+    } catch (error: any) {
+      toast({
+        title: "Error saving reply",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -276,22 +351,89 @@ const Dashboard = () => {
                     {/* AI Reply */}
                     {existingReply ? (
                       <div className="rounded-lg bg-secondary p-4">
-                        <p className="mb-2 text-sm font-medium text-muted-foreground">
-                          {existingReply.is_ai_generated ? "AI-Generated Reply" : "Reply"}
-                        </p>
-                        <Textarea
-                          defaultValue={existingReply.content}
-                          className="min-h-[100px] resize-none"
-                        />
-                        <div className="mt-2 flex justify-end gap-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm font-medium text-muted-foreground">
+                            {existingReply.is_ai_generated ? "AI-Generated Reply" : "Reply"}
+                          </p>
                           <Badge variant="outline" className={
                             existingReply.status === "posted" 
                               ? "border-success text-success"
                               : "border-warning text-warning"
                           }>
-                            {existingReply.status}
+                            {existingReply.status === "posted" ? "Posted" : "Draft"}
                           </Badge>
                         </div>
+                        <Textarea
+                          value={editingReply === existingReply.id ? (editedContent[existingReply.id] ?? existingReply.content) : existingReply.content}
+                          onChange={(e) => setEditedContent(prev => ({ ...prev, [existingReply.id]: e.target.value }))}
+                          disabled={existingReply.status === "posted" || editingReply !== existingReply.id}
+                          className="min-h-[100px] resize-none"
+                        />
+                        {existingReply.status === "draft" && (
+                          <div className="mt-3 flex justify-end gap-2">
+                            {editingReply === existingReply.id ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setEditingReply(null);
+                                    setEditedContent(prev => {
+                                      const newContent = { ...prev };
+                                      delete newContent[existingReply.id];
+                                      return newContent;
+                                    });
+                                  }}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleSaveEdit(existingReply.id, editedContent[existingReply.id] ?? existingReply.content)}
+                                >
+                                  <Check className="h-4 w-4" />
+                                  Save Changes
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setEditingReply(existingReply.id);
+                                    setEditedContent(prev => ({ ...prev, [existingReply.id]: existingReply.content }));
+                                  }}
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                  Edit
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handlePostReply(existingReply.id, review.id)}
+                                  disabled={postingReply === existingReply.id}
+                                >
+                                  {postingReply === existingReply.id ? (
+                                    <>
+                                      <RefreshCw className="h-4 w-4 animate-spin" />
+                                      Posting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Send className="h-4 w-4" />
+                                      Post to Google
+                                    </>
+                                  )}
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                        {existingReply.status === "posted" && existingReply.posted_at && (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Posted {formatDistanceToNow(new Date(existingReply.posted_at), { addSuffix: true })}
+                          </p>
+                        )}
                       </div>
                     ) : (
                       <div className="rounded-lg border border-dashed border-border p-4 text-center">
