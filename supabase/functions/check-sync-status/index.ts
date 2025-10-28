@@ -131,8 +131,23 @@ serve(async (req) => {
         const locationName = location.title || 'Unnamed Location';
         const address = location.storefrontAddress?.addressLines?.join(', ') || '';
         
-        // Get review count from Google metadata
-        const googleReviewCount = location.metadata?.newReviewCount || 0;
+        // Fetch actual reviews to get accurate count
+        let googleReviewCount = 0;
+        try {
+          const reviewsUrl = `https://mybusiness.googleapis.com/v4/${googleLocationId}/reviews?pageSize=1`;
+          const reviewsResponse = await fetch(reviewsUrl, {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          });
+          
+          if (reviewsResponse.ok) {
+            const reviewsData = await reviewsResponse.json();
+            googleReviewCount = reviewsData.totalReviewCount || reviewsData.reviews?.length || 0;
+          } else {
+            console.log(`⚠ Could not fetch reviews for ${locationName}, using 0`);
+          }
+        } catch (error) {
+          console.error(`Error fetching reviews for ${locationName}:`, error);
+        }
         
         // Get review count from database
         const { count: dbReviewCount } = await supabase
