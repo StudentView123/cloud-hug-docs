@@ -132,23 +132,30 @@ serve(async (req) => {
         const locationName = location.title || 'Unnamed Location';
         const address = location.storefrontAddress?.addressLines?.join(', ') || '';
         
-        // Fetch actual reviews to get accurate count
+        // Fetch actual reviews to get accurate count using pageSize=0 for efficiency
         let googleReviewCount: number | null = null;
         let googleError: { status: number; message: string; source: string } | undefined;
         let staleGoogleCount: number | undefined;
         
         try {
-          const reviewsUrl = `https://mybusiness.googleapis.com/v4/${googleLocationId}/reviews?pageSize=1`;
+          // Try pageSize=0 first for maximum efficiency (only metadata)
+          const reviewsUrl = `https://mybusiness.googleapis.com/v4/${googleLocationId}/reviews?pageSize=0`;
+          console.log(`Fetching review count for ${locationName}: ${reviewsUrl}`);
+          
           const reviewsResponse = await fetch(reviewsUrl, {
             headers: { Authorization: `Bearer ${accessToken}` }
           });
           
           if (reviewsResponse.ok) {
             const reviewsData = await reviewsResponse.json();
-            googleReviewCount = reviewsData.totalReviewCount || reviewsData.reviews?.length || 0;
+            console.log(`API response for ${locationName}:`, JSON.stringify(reviewsData));
+            
+            // The API returns totalReviewCount directly in the response
+            googleReviewCount = reviewsData.totalReviewCount ?? 0;
+            console.log(`✓ Got totalReviewCount=${googleReviewCount} for ${locationName}`);
           } else {
             const errorText = await reviewsResponse.text();
-            console.log(`⚠ Could not fetch reviews for ${locationName} (${reviewsResponse.status}): ${errorText}`);
+            console.log(`⚠ API error for ${locationName} (${reviewsResponse.status}): ${errorText}`);
             
             googleError = {
               status: reviewsResponse.status,
