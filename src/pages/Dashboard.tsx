@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Star, ThumbsUp, AlertCircle, RefreshCw, Send, Edit2, Check, ArrowUpDown, CheckSquare, X, BarChart3 } from "lucide-react";
+import { Star, ThumbsUp, AlertCircle, RefreshCw, Send, Edit2, Check, ArrowUpDown, CheckSquare, X, BarChart3, AlertTriangle } from "lucide-react";
 import { useReviews, useFetchReviews } from "@/hooks/useReviews";
 import { useLocations } from "@/hooks/useLocations";
 import { useEffect, useState } from "react";
@@ -556,6 +556,25 @@ const Dashboard = () => {
       />
 
       <div className="p-8">
+        {/* Alert Banner for Sentiment Mismatches */}
+        {needsReviewCount > 0 && (
+          <Card className="mb-6 border-warning bg-warning/10">
+            <div className="flex items-center gap-3 p-4">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              <div className="flex-1">
+                <p className="font-medium text-foreground">
+                  {needsReviewCount} {needsReviewCount === 1 ? 'review needs' : 'reviews need'} attention due to rating changes
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Draft replies may no longer match the updated ratings. Review and regenerate as needed.
+                </p>
+              </div>
+              <Button variant="outline" onClick={() => navigate('/review-audit')}>
+                View Audit Dashboard
+              </Button>
+            </div>
+          </Card>
+        )}
         <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-3">
           <Card className="p-6">
             <div className="flex items-center gap-3">

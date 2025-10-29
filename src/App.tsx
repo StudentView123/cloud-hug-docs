@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Locations from "./pages/Locations";
 import Archive from "./pages/Archive";
 import ActivityLog from "./pages/ActivityLog";
+import ReviewAudit from "./pages/ReviewAudit";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -29,6 +30,7 @@ const App = () => (
           <Route path="/locations" element={<Locations />} />
           <Route path="/archive" element={<Archive />} />
           <Route path="/activity-log" element={<ActivityLog />} />
+          <Route path="/review-audit" element={<ReviewAudit />} />
           <Route path="/settings" element={<Settings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

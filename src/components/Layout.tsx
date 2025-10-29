@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, MapPin, Activity, Settings, Archive } from "lucide-react";
+import { LayoutDashboard, MapPin, Activity, Settings, Archive, ClipboardCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navigation = [
@@ -7,6 +7,7 @@ const navigation = [
   { name: "Locations", href: "/locations", icon: MapPin },
   { name: "Archive", href: "/archive", icon: Archive },
   { name: "Activity Log", href: "/activity-log", icon: Activity },
+  { name: "Review Audit", href: "/review-audit", icon: ClipboardCheck },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
