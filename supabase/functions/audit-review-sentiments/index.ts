@@ -39,7 +39,7 @@ serve(async (req) => {
       return 'negative';
     };
 
-    // Fetch all reviews for this user
+    // Fetch ALL reviews for this user (including archived)
     const { data: reviews, error: fetchError } = await supabase
       .from('reviews')
       .select(`
@@ -48,6 +48,7 @@ serve(async (req) => {
         sentiment,
         location_id,
         rating_history,
+        archived,
         locations!inner(user_id)
       `)
       .eq('locations.user_id', user.id);
@@ -61,10 +62,19 @@ serve(async (req) => {
 
     let sentimentsAssigned = 0;
     let mismatchesFound = 0;
+    let activeReviews = 0;
+    let archivedReviews = 0;
     const mismatchDetails: any[] = [];
 
     // Process each review
     for (const review of reviews || []) {
+      // Track active vs archived
+      if (review.archived) {
+        archivedReviews++;
+      } else {
+        activeReviews++;
+      }
+
       const calculatedSentiment = getSentiment(review.rating);
       let needsUpdate = false;
       const updateData: any = {};
@@ -130,14 +140,31 @@ serve(async (req) => {
 
     console.log('=== AUDIT COMPLETE ===');
     console.log(`Total reviews processed: ${reviews?.length || 0}`);
+    console.log(`Active reviews: ${activeReviews}`);
+    console.log(`Archived reviews: ${archivedReviews}`);
     console.log(`Sentiments assigned: ${sentimentsAssigned}`);
     console.log(`Mismatches found: ${mismatchesFound}`);
+
+    // Log activity
+    await supabase.from('activity_logs').insert({
+      user_id: user.id,
+      action: 'audit_completed',
+      details: {
+        total_reviews_processed: reviews?.length || 0,
+        active_reviews: activeReviews,
+        archived_reviews: archivedReviews,
+        sentiments_assigned: sentimentsAssigned,
+        mismatches_found: mismatchesFound,
+      },
+    });
 
     return new Response(
       JSON.stringify({
         success: true,
         stats: {
           total_reviews: reviews?.length || 0,
+          active_reviews: activeReviews,
+          archived_reviews: archivedReviews,
           sentiments_assigned: sentimentsAssigned,
           mismatches_found: mismatchesFound,
           mismatch_details: mismatchDetails,

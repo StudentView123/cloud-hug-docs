@@ -5,18 +5,22 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useAuditStats, useRunAudit } from "@/hooks/useAuditStats";
 import { useActivityLog } from "@/hooks/useActivityLog";
-import { RefreshCw, AlertTriangle, TrendingUp, Star, CheckCircle2 } from "lucide-react";
+import { useGenerateInsights, AuditInsights } from "@/hooks/useAuditInsights";
+import { RefreshCw, AlertTriangle, TrendingUp, Star, CheckCircle2, Sparkles, Target, Users } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const ReviewAudit = () => {
   const { data: stats, isLoading, refetch } = useAuditStats();
   const { data: activities } = useActivityLog();
   const { runAudit } = useRunAudit();
+  const { generateInsights, isGenerating } = useGenerateInsights();
   const [isRunning, setIsRunning] = useState(false);
+  const [insights, setInsights] = useState<AuditInsights | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -28,7 +32,7 @@ const ReviewAudit = () => {
       if (result.success) {
         toast({
           title: "Audit Complete",
-          description: `Processed ${result.stats.total_reviews} reviews. Assigned ${result.stats.sentiments_assigned} sentiments. Found ${result.stats.mismatches_found} mismatches.`,
+          description: `Processed ${result.stats.total_reviews} reviews (${result.stats.active_reviews} active, ${result.stats.archived_reviews} archived). Assigned ${result.stats.sentiments_assigned} sentiments.`,
         });
         
         // Refetch audit stats and invalidate reviews
@@ -44,6 +48,31 @@ const ReviewAudit = () => {
       });
     } finally {
       setIsRunning(false);
+    }
+  };
+
+  const handleGenerateInsights = async () => {
+    try {
+      toast({
+        title: "Generating Insights",
+        description: "Analyzing all reviews with AI... This may take a moment.",
+      });
+
+      const result = await generateInsights();
+      setInsights(result);
+
+      toast({
+        title: "Insights Generated",
+        description: `Analyzed ${result.stats?.total_reviews || 0} reviews and generated ${result.key_insights?.length || 0} key insights.`,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
+    } catch (error: any) {
+      toast({
+        title: "Failed to Generate Insights",
+        description: error.message || "An error occurred while generating insights",
+        variant: "destructive",
+      });
     }
   };
 
@@ -105,14 +134,18 @@ const ReviewAudit = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <p className="text-2xl font-bold text-foreground">{stats?.total_reviews}</p>
+                <p className="text-sm text-muted-foreground">Total reviews</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{stats?.reviews_with_sentiment}</p>
+                <p className="text-sm text-muted-foreground">With sentiment</p>
+              </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{stats?.health_percentage}%</p>
-                <p className="text-sm text-muted-foreground">Reviews with sentiment assigned</p>
-              </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold text-foreground">{stats?.reviews_with_sentiment}</p>
-                <p className="text-sm text-muted-foreground">of {stats?.total_reviews} reviews</p>
+                <p className="text-sm text-muted-foreground">Health score</p>
               </div>
             </div>
             <Progress value={stats?.health_percentage || 0} className="h-2" />
@@ -123,6 +156,167 @@ const ReviewAudit = () => {
                   <strong>{stats.reviews_missing_sentiment}</strong> reviews missing sentiment data.
                   Run an audit to assign sentiments automatically.
                 </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* AI Insights Section */}
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              AI-Powered Insights
+            </CardTitle>
+            <CardDescription>
+              Generate comprehensive analysis of all reviews with AI
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!insights ? (
+              <div className="text-center py-8">
+                <Sparkles className="h-12 w-12 text-primary mx-auto mb-4 opacity-50" />
+                <p className="text-sm text-muted-foreground mb-4">
+                  Generate a comprehensive AI report analyzing all {stats?.total_reviews || 0} reviews
+                </p>
+                <Button onClick={handleGenerateInsights} disabled={isGenerating}>
+                  <Sparkles className={`mr-2 h-4 w-4 ${isGenerating ? 'animate-pulse' : ''}`} />
+                  {isGenerating ? 'Generating...' : 'Generate AI Insights Report'}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Executive Summary */}
+                <div className="rounded-lg border bg-card p-4">
+                  <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+                    <Target className="h-4 w-4 text-primary" />
+                    Executive Summary
+                  </h3>
+                  <p className="text-sm text-muted-foreground">{insights.summary}</p>
+                </div>
+
+                {/* Stats Overview */}
+                {insights.stats && (
+                  <div className="grid gap-3 md:grid-cols-4">
+                    <div className="rounded-lg border bg-card p-3">
+                      <p className="text-2xl font-bold text-foreground">{insights.stats.total_reviews}</p>
+                      <p className="text-xs text-muted-foreground">Total Reviews</p>
+                    </div>
+                    <div className="rounded-lg border bg-green-500/10 p-3">
+                      <p className="text-2xl font-bold text-green-600">{insights.stats.sentiment_breakdown.positive}</p>
+                      <p className="text-xs text-muted-foreground">Positive</p>
+                    </div>
+                    <div className="rounded-lg border bg-yellow-500/10 p-3">
+                      <p className="text-2xl font-bold text-yellow-600">{insights.stats.sentiment_breakdown.neutral}</p>
+                      <p className="text-xs text-muted-foreground">Neutral</p>
+                    </div>
+                    <div className="rounded-lg border bg-red-500/10 p-3">
+                      <p className="text-2xl font-bold text-red-600">{insights.stats.sentiment_breakdown.negative}</p>
+                      <p className="text-xs text-muted-foreground">Negative</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Notable Reviewers */}
+                {insights.notable_reviewers && insights.notable_reviewers.length > 0 && (
+                  <Collapsible>
+                    <CollapsibleTrigger className="w-full">
+                      <div className="rounded-lg border bg-card p-4 hover:bg-accent transition-colors">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold text-foreground flex items-center gap-2">
+                            <Users className="h-4 w-4 text-primary" />
+                            Notable Reviewers ({insights.notable_reviewers.length})
+                          </h3>
+                          <Badge variant="outline">View Details</Badge>
+                        </div>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-2 space-y-2">
+                      {insights.notable_reviewers.map((reviewer, idx) => (
+                        <div key={idx} className="rounded-lg border bg-card p-3">
+                          <div className="flex items-start justify-between mb-1">
+                            <p className="font-medium text-foreground">{reviewer.name}</p>
+                            <Badge variant="outline" className="flex items-center gap-1">
+                              <Star className="h-3 w-3 fill-primary text-primary" />
+                              {reviewer.rating}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{reviewer.highlight}</p>
+                        </div>
+                      ))}
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+
+                {/* Key Insights */}
+                {insights.key_insights && insights.key_insights.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-foreground">Key Insights</h3>
+                    {insights.key_insights.map((insight, idx) => (
+                      <Collapsible key={idx}>
+                        <CollapsibleTrigger className="w-full">
+                          <div className="rounded-lg border bg-card p-3 hover:bg-accent transition-colors text-left">
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium text-foreground">{insight.title}</p>
+                              <Badge variant="outline">View</Badge>
+                            </div>
+                          </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-2 rounded-lg border bg-card p-3">
+                          <p className="text-sm text-muted-foreground mb-3">{insight.description}</p>
+                          {insight.examples && insight.examples.length > 0 && (
+                            <div className="space-y-2">
+                              <p className="text-xs font-medium text-foreground">Examples:</p>
+                              {insight.examples.map((example, exIdx) => (
+                                <div key={exIdx} className="rounded bg-muted p-2">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <p className="text-xs font-medium text-foreground">{example.author}</p>
+                                    <Badge variant="outline" className="h-5 text-xs">
+                                      {example.rating}★
+                                    </Badge>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground italic">"{example.excerpt}"</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    ))}
+                  </div>
+                )}
+
+                {/* Action Items */}
+                {insights.action_items && insights.action_items.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-foreground">Action Items</h3>
+                    {insights.action_items.map((item, idx) => (
+                      <div key={idx} className="rounded-lg border bg-card p-3">
+                        <div className="flex items-start gap-3">
+                          <Badge 
+                            variant={item.priority === 'high' ? 'destructive' : item.priority === 'medium' ? 'default' : 'secondary'}
+                            className="mt-0.5"
+                          >
+                            {item.priority}
+                          </Badge>
+                          <div className="flex-1">
+                            <p className="text-sm text-foreground">{item.description}</p>
+                            {item.affected_reviews && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Affects {item.affected_reviews} review{item.affected_reviews !== 1 ? 's' : ''}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <Button variant="outline" className="w-full" onClick={handleGenerateInsights} disabled={isGenerating}>
+                  <RefreshCw className={`mr-2 h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
+                  Regenerate Insights
+                </Button>
               </div>
             )}
           </CardContent>
