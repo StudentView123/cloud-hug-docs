@@ -95,6 +95,7 @@ serve(async (req) => {
     let totalDbReviews = 0;
     let fullySyncedCount = 0;
     let needsSyncCount = 0;
+    let unknownLocationsCount = 0;
 
     for (const account of accounts) {
       console.log(`Processing account: ${account.name}`);
@@ -132,7 +133,10 @@ serve(async (req) => {
         const address = location.storefrontAddress?.addressLines?.join(', ') || '';
         
         // Fetch actual reviews to get accurate count
-        let googleReviewCount = 0;
+        let googleReviewCount: number | null = null;
+        let googleError: { status: number; message: string; source: string } | undefined;
+        let staleGoogleCount: number | undefined;
+        
         try {
           const reviewsUrl = `https://mybusiness.googleapis.com/v4/${googleLocationId}/reviews?pageSize=1`;
           const reviewsResponse = await fetch(reviewsUrl, {
@@ -143,10 +147,46 @@ serve(async (req) => {
             const reviewsData = await reviewsResponse.json();
             googleReviewCount = reviewsData.totalReviewCount || reviewsData.reviews?.length || 0;
           } else {
-            console.log(`⚠ Could not fetch reviews for ${locationName}, using 0`);
+            const errorText = await reviewsResponse.text();
+            console.log(`⚠ Could not fetch reviews for ${locationName} (${reviewsResponse.status}): ${errorText}`);
+            
+            googleError = {
+              status: reviewsResponse.status,
+              message: errorText || `HTTP ${reviewsResponse.status}`,
+              source: 'reviews_api'
+            };
+            
+            // Try to get stale count from locations table
+            const { data: locationData } = await supabase
+              .from('locations')
+              .select('review_count')
+              .eq('google_location_id', googleLocationId)
+              .eq('user_id', user.id)
+              .single();
+            
+            if (locationData?.review_count) {
+              staleGoogleCount = locationData.review_count;
+            }
           }
         } catch (error) {
           console.error(`Error fetching reviews for ${locationName}:`, error);
+          googleError = {
+            status: 0,
+            message: error instanceof Error ? error.message : 'Unknown error',
+            source: 'reviews_api'
+          };
+          
+          // Try to get stale count from locations table
+          const { data: locationData } = await supabase
+            .from('locations')
+            .select('review_count')
+            .eq('google_location_id', googleLocationId)
+            .eq('user_id', user.id)
+            .single();
+          
+          if (locationData?.review_count) {
+            staleGoogleCount = locationData.review_count;
+          }
         }
         
         // Get review count from database
@@ -163,22 +203,36 @@ serve(async (req) => {
           ).data?.id || '');
 
         const dbCount = dbReviewCount || 0;
-        const missing = Math.max(0, googleReviewCount - dbCount);
-        const syncPercentage = googleReviewCount > 0 
-          ? Math.round((dbCount / googleReviewCount) * 100) 
-          : 100;
-        const status = syncPercentage === 100 ? 'complete' : 'incomplete';
-
-        if (status === 'complete') {
-          fullySyncedCount++;
+        
+        let missing: number;
+        let syncPercentage: number | null;
+        let status: 'complete' | 'incomplete' | 'unknown';
+        
+        if (googleReviewCount === null) {
+          // Google count unavailable - status unknown
+          missing = 0;
+          syncPercentage = null;
+          status = 'unknown';
+          unknownLocationsCount++;
         } else {
-          needsSyncCount++;
+          // Normal calculation
+          missing = Math.max(0, googleReviewCount - dbCount);
+          syncPercentage = googleReviewCount > 0 
+            ? Math.round((dbCount / googleReviewCount) * 100) 
+            : 100;
+          status = syncPercentage === 100 ? 'complete' : 'incomplete';
+          
+          if (status === 'complete') {
+            fullySyncedCount++;
+          } else {
+            needsSyncCount++;
+          }
+          
+          totalGoogleReviews += googleReviewCount;
+          totalDbReviews += dbCount;
         }
 
-        totalGoogleReviews += googleReviewCount;
-        totalDbReviews += dbCount;
-
-        locationStatuses.push({
+        const locationStatus: any = {
           google_location_id: googleLocationId,
           name: locationName,
           address,
@@ -187,14 +241,29 @@ serve(async (req) => {
           missing,
           sync_percentage: syncPercentage,
           status,
-        });
+        };
+        
+        if (googleError) {
+          locationStatus.google_error = googleError;
+        }
+        
+        if (staleGoogleCount !== undefined) {
+          locationStatus.stale_google_count = staleGoogleCount;
+        }
+        
+        locationStatuses.push(locationStatus);
 
-        console.log(`✓ ${locationName}: ${dbCount}/${googleReviewCount} reviews (${syncPercentage}%)`);
+        const percentDisplay = syncPercentage !== null ? `${syncPercentage}%` : 'unknown';
+        console.log(`✓ ${locationName}: ${dbCount}/${googleReviewCount ?? 'unknown'} reviews (${percentDisplay})`);
       }
     }
 
     const totalMissing = Math.max(0, totalGoogleReviews - totalDbReviews);
 
+    const overallSyncPercentage = totalGoogleReviews > 0 
+      ? Math.round((totalDbReviews / totalGoogleReviews) * 100)
+      : (unknownLocationsCount === locationStatuses.length ? null : 100);
+    
     const response = {
       success: true,
       locations: locationStatuses,
@@ -202,12 +271,11 @@ serve(async (req) => {
         total_locations: locationStatuses.length,
         fully_synced: fullySyncedCount,
         needs_sync: needsSyncCount,
+        unknown_locations: unknownLocationsCount,
         total_google_reviews: totalGoogleReviews,
         total_db_reviews: totalDbReviews,
         total_missing_reviews: totalMissing,
-        overall_sync_percentage: totalGoogleReviews > 0 
-          ? Math.round((totalDbReviews / totalGoogleReviews) * 100)
-          : 100,
+        overall_sync_percentage: overallSyncPercentage,
       },
     };
 

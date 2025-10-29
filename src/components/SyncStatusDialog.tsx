@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import { CheckCircle2, AlertCircle, RefreshCw, AlertTriangle } from "lucide-react";
 import { LocationSyncStatus, SyncStatusResponse } from "@/hooks/useSyncStatus";
 
 interface SyncStatusDialogProps {
@@ -50,22 +50,44 @@ export const SyncStatusDialog = ({
               <p className="text-sm text-muted-foreground">Needs Sync</p>
               <p className="text-2xl font-semibold text-warning">{summary.needs_sync}</p>
             </div>
+            {summary.unknown_locations > 0 && (
+              <div>
+                <p className="text-sm text-muted-foreground">Unknown Status</p>
+                <p className="text-2xl font-semibold text-muted-foreground">{summary.unknown_locations}</p>
+              </div>
+            )}
             <div>
               <p className="text-sm text-muted-foreground">Missing Reviews</p>
               <p className="text-2xl font-semibold text-destructive">{summary.total_missing_reviews}</p>
             </div>
           </div>
           
-          <div className="mt-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">Overall Sync Progress</span>
-              <span className="text-sm font-semibold">{summary.overall_sync_percentage}%</span>
+          {summary.overall_sync_percentage !== null && (
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium">Overall Sync Progress</span>
+                <span className="text-sm font-semibold">{summary.overall_sync_percentage}%</span>
+              </div>
+              <Progress value={summary.overall_sync_percentage} className="h-2" />
+              <p className="text-xs text-muted-foreground mt-1">
+                {summary.total_db_reviews} / {summary.total_google_reviews} reviews synced
+              </p>
             </div>
-            <Progress value={summary.overall_sync_percentage} className="h-2" />
-            <p className="text-xs text-muted-foreground mt-1">
-              {summary.total_db_reviews} / {summary.total_google_reviews} reviews synced
-            </p>
-          </div>
+          )}
+          
+          {summary.unknown_locations > 0 && (
+            <div className="mt-4 p-3 bg-warning/10 border border-warning/20 rounded-md">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-warning mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-warning">Google data unavailable for some locations</p>
+                  <p className="text-muted-foreground mt-1">
+                    Could not retrieve review counts from Google. This may be due to API permissions or quota limits.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Location Details */}
@@ -82,6 +104,11 @@ export const SyncStatusDialog = ({
                         <CheckCircle2 className="h-3 w-3 mr-1" />
                         Synced
                       </Badge>
+                    ) : location.status === 'unknown' ? (
+                      <Badge variant="outline" className="border-muted-foreground text-muted-foreground">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        Unknown
+                      </Badge>
                     ) : (
                       <Badge variant="outline" className="border-warning text-warning">
                         <AlertCircle className="h-3 w-3 mr-1" />
@@ -93,22 +120,45 @@ export const SyncStatusDialog = ({
                     <p className="text-sm text-muted-foreground mb-2">{location.address}</p>
                   )}
                   
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Sync Progress</span>
-                      <span className="font-medium">{location.sync_percentage}%</span>
+                  {location.status === 'unknown' ? (
+                    <div className="space-y-2">
+                      <div className="p-2 bg-warning/10 border border-warning/20 rounded text-sm">
+                        <p className="font-medium text-warning mb-1">Google data unavailable</p>
+                        {location.google_error && (
+                          <p className="text-xs text-muted-foreground">
+                            Error: {location.google_error.message}
+                          </p>
+                        )}
+                        {location.stale_google_count !== undefined && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Last known Google count: {location.stale_google_count}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {location.db_count} reviews in database
+                      </div>
                     </div>
-                    <Progress value={location.sync_percentage} className="h-1.5" />
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{location.db_count} in database</span>
-                      <span>{location.google_count} on Google</span>
-                    </div>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Sync Progress</span>
+                          <span className="font-medium">{location.sync_percentage}%</span>
+                        </div>
+                        <Progress value={location.sync_percentage ?? 0} className="h-1.5" />
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{location.db_count} in database</span>
+                          <span>{location.google_count} on Google</span>
+                        </div>
+                      </div>
 
-                  {location.missing > 0 && (
-                    <p className="text-sm text-destructive mt-2">
-                      Missing {location.missing} review{location.missing !== 1 ? 's' : ''}
-                    </p>
+                      {location.missing > 0 && (
+                        <p className="text-sm text-destructive mt-2">
+                          Missing {location.missing} review{location.missing !== 1 ? 's' : ''}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
 
