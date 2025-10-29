@@ -603,7 +603,12 @@ const Dashboard = () => {
                     <SelectItem value="all">All Locations</SelectItem>
                     {locations?.map((location) => (
                       <SelectItem key={location.id} value={location.id}>
-                        {location.name}
+                        <div className="flex flex-col">
+                          <span className="font-medium">{location.name}</span>
+                          {location.address && (
+                            <span className="text-xs text-muted-foreground">{location.address}</span>
+                          )}
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
