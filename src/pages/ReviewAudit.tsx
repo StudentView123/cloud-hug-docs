@@ -13,6 +13,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const ReviewAudit = () => {
   const { data: stats, isLoading, refetch } = useAuditStats();
@@ -23,6 +24,7 @@ const ReviewAudit = () => {
   const [insights, setInsights] = useState<AuditInsights | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   const handleRunAudit = async () => {
     setIsRunning(true);
@@ -92,30 +94,30 @@ const ReviewAudit = () => {
 
   return (
     <Layout>
-      <div className="flex flex-col gap-6 p-8">
+      <div className={`flex flex-col ${isMobile ? 'gap-4 p-4' : 'gap-6 p-8'}`}>
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className={`flex ${isMobile ? 'flex-col gap-3' : 'items-center justify-between'}`}>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Review Audit</h1>
+            <h1 className={`${isMobile ? 'text-2xl' : 'text-3xl'} font-bold text-foreground`}>Review Audit</h1>
             <p className="text-muted-foreground">Monitor sentiment health and detect rating changes</p>
           </div>
-          <Button onClick={handleRunAudit} disabled={isRunning}>
+          <Button onClick={handleRunAudit} disabled={isRunning} className={isMobile ? 'w-full' : ''}>
             <RefreshCw className={`mr-2 h-4 w-4 ${isRunning ? 'animate-spin' : ''}`} />
-            {isRunning ? 'Running Audit...' : 'Run Sentiment Audit'}
+            {isRunning ? 'Running...' : isMobile ? 'Run Audit' : 'Run Sentiment Audit'}
           </Button>
         </div>
 
         {/* Alert if issues found */}
         {stats && stats.sentiment_mismatches > 0 && (
           <Card className="border-warning bg-warning/10">
-            <CardContent className="flex items-center gap-3 p-4">
-              <AlertTriangle className="h-5 w-5 text-warning" />
-              <div className="flex-1">
+            <CardContent className={`flex ${isMobile ? 'flex-col' : 'items-center'} gap-3 p-4`}>
+              <div className="flex items-center gap-3 flex-1">
+                <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0" />
                 <p className="font-medium text-foreground">
                   {stats.sentiment_mismatches} {stats.sentiment_mismatches === 1 ? 'review needs' : 'reviews need'} attention due to rating changes
                 </p>
               </div>
-              <Button variant="outline" onClick={() => navigate('/dashboard')}>
+              <Button variant="outline" onClick={() => navigate('/dashboard')} className={isMobile ? 'w-full' : ''}>
                 View Dashboard
               </Button>
             </CardContent>
@@ -197,7 +199,7 @@ const ReviewAudit = () => {
 
                 {/* Stats Overview */}
                 {insights.stats && (
-                  <div className="grid gap-3 md:grid-cols-4">
+                  <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
                     <div className="rounded-lg border bg-card p-3">
                       <p className="text-2xl font-bold text-foreground">{insights.stats.total_reviews}</p>
                       <p className="text-xs text-muted-foreground">Total Reviews</p>
@@ -221,22 +223,22 @@ const ReviewAudit = () => {
                 {insights.notable_reviewers && insights.notable_reviewers.length > 0 && (
                   <Collapsible>
                     <CollapsibleTrigger className="w-full">
-                      <div className="rounded-lg border bg-card p-4 hover:bg-accent transition-colors">
+                      <div className={`rounded-lg border bg-card ${isMobile ? 'p-3' : 'p-4'} hover:bg-accent transition-colors`}>
                         <div className="flex items-center justify-between">
-                          <h3 className="font-semibold text-foreground flex items-center gap-2">
-                            <Users className="h-4 w-4 text-primary" />
+                          <h3 className={`font-semibold text-foreground flex items-center gap-2 ${isMobile ? 'text-sm' : ''}`}>
+                            <Users className="h-4 w-4 text-primary flex-shrink-0" />
                             Notable Reviewers ({insights.notable_reviewers.length})
                           </h3>
-                          <Badge variant="outline">View Details</Badge>
+                          <Badge variant="outline" className={isMobile ? 'text-xs' : ''}>View</Badge>
                         </div>
                       </div>
                     </CollapsibleTrigger>
                     <CollapsibleContent className="mt-2 space-y-2">
                       {insights.notable_reviewers.map((reviewer, idx) => (
                         <div key={idx} className="rounded-lg border bg-card p-3">
-                          <div className="flex items-start justify-between mb-1">
-                            <p className="font-medium text-foreground">{reviewer.name}</p>
-                            <Badge variant="outline" className="flex items-center gap-1">
+                          <div className={`flex ${isMobile ? 'flex-col gap-1' : 'items-start justify-between'} mb-1`}>
+                            <p className="font-medium text-foreground truncate">{reviewer.name}</p>
+                            <Badge variant="outline" className="flex items-center gap-1 w-fit">
                               <Star className="h-3 w-3 fill-primary text-primary" />
                               {reviewer.rating}
                             </Badge>
@@ -295,11 +297,11 @@ const ReviewAudit = () => {
                         <div className="flex items-start gap-3">
                           <Badge 
                             variant={item.priority === 'high' ? 'destructive' : item.priority === 'medium' ? 'default' : 'secondary'}
-                            className="mt-0.5"
+                            className={`mt-0.5 ${isMobile ? 'text-xs px-2' : ''}`}
                           >
                             {item.priority}
                           </Badge>
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             <p className="text-sm text-foreground">{item.description}</p>
                             {item.affected_reviews && (
                               <p className="text-xs text-muted-foreground mt-1">
