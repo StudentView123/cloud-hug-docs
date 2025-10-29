@@ -93,6 +93,7 @@ const Dashboard = () => {
       const newStatus = await checkSyncStatus();
       setSyncStatus(newStatus);
       queryClient.invalidateQueries({ queryKey: ["reviews"] });
+      queryClient.invalidateQueries({ queryKey: ["review-counts-by-location"] });
     } catch (error: any) {
       toast({
         title: "Error syncing location",
@@ -132,6 +133,7 @@ const Dashboard = () => {
       const newStatus = await checkSyncStatus();
       setSyncStatus(newStatus);
       queryClient.invalidateQueries({ queryKey: ["reviews"] });
+      queryClient.invalidateQueries({ queryKey: ["review-counts-by-location"] });
     } catch (error: any) {
       toast({
         title: "Error syncing reviews",
@@ -187,6 +189,7 @@ const Dashboard = () => {
         description: `Successfully fetched ${count} new reviews from Google`,
       });
       queryClient.invalidateQueries({ queryKey: ["reviews"] });
+      queryClient.invalidateQueries({ queryKey: ["review-counts-by-location"] });
     } catch (error: any) {
       toast({
         title: "Error fetching reviews",
