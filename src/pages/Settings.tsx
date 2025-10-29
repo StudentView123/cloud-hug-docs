@@ -21,6 +21,7 @@ const Settings = () => {
   const [locationDiagnostics, setLocationDiagnostics] = useState<any>(null);
   const [listingLocations, setListingLocations] = useState(false);
   const [syncingLocations, setSyncingLocations] = useState(false);
+  const [quickSyncing, setQuickSyncing] = useState(false);
   const { data: locations, isLoading: locationsLoading, refetch: refetchLocations } = useLocations();
   const isMobile = useIsMobile();
 
@@ -196,6 +197,63 @@ const Settings = () => {
     }
   };
 
+  const handleQuickSync = async () => {
+    setQuickSyncing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      // Step 1: Check sync status
+      const { data: syncStatus, error: syncError } = await supabase.functions.invoke('check-sync-status', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (syncError) throw syncError;
+
+      // Find locations that need syncing
+      const locationsNeedingSync = syncStatus.locations?.filter(
+        (loc: any) => loc.status === 'incomplete' && loc.missing > 0
+      ) || [];
+
+      if (locationsNeedingSync.length === 0) {
+        toast({
+          title: "All Synced",
+          description: "All locations are up to date!",
+        });
+        return;
+      }
+
+      // Step 2: Sync those locations
+      const locationIds = locationsNeedingSync.map((loc: any) => loc.google_location_id);
+      
+      const { data: syncData, error: fetchError } = await supabase.functions.invoke('fetch-reviews', {
+        body: { location_ids: locationIds },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (fetchError) throw fetchError;
+
+      toast({
+        title: "Quick Sync Complete",
+        description: `Synced ${locationsNeedingSync.length} location${locationsNeedingSync.length === 1 ? '' : 's'} with ${syncData.totalNewReviews || 0} new review${syncData.totalNewReviews === 1 ? '' : 's'}.`,
+      });
+
+      await refetchLocations();
+    } catch (error) {
+      toast({
+        title: "Quick Sync Failed",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setQuickSyncing(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
@@ -247,6 +305,15 @@ const Settings = () => {
                     </Badge>
                   </div>
                   <div className="space-y-2">
+                    <Button 
+                      variant="default" 
+                      className="w-full"
+                      onClick={handleQuickSync}
+                      disabled={quickSyncing}
+                    >
+                      <RefreshCw className={`mr-2 h-4 w-4 ${quickSyncing ? 'animate-spin' : ''}`} />
+                      Quick Sync
+                    </Button>
                     <div className={`flex ${isMobile ? 'flex-col' : ''} gap-2`}>
                       <Button 
                         variant="outline" 
