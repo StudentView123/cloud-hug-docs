@@ -12,6 +12,7 @@ import Archive from "./pages/Archive";
 import ActivityLog from "./pages/ActivityLog";
 import ReviewAudit from "./pages/ReviewAudit";
 import Settings from "./pages/Settings";
+import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/activity-log" element={<ActivityLog />} />
           <Route path="/review-audit" element={<ReviewAudit />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/install" element={<Install />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
