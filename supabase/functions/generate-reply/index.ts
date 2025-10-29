@@ -144,6 +144,13 @@ Do not use generic phrases. Make it specific to their review when possible.`;
       generatedReply = aiData.choices[0].message.content;
     }
 
+    // Delete any existing draft replies for this review (to handle regeneration)
+    await supabase
+      .from('replies')
+      .delete()
+      .eq('review_id', reviewId)
+      .eq('status', 'draft');
+
     // Save the generated reply
     const { data: reply, error: replyError } = await supabase
       .from('replies')
@@ -153,6 +160,7 @@ Do not use generic phrases. Make it specific to their review when possible.`;
         content: generatedReply,
         status: 'draft',
         is_ai_generated: true,
+        needs_review: false,
       })
       .select()
       .single();

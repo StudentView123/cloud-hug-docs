@@ -11,7 +11,7 @@ export const useArchive = (searchTerm: string = "") => {
         .select(`
           *,
           location:locations(id, name, address),
-          replies(id, content, status, is_ai_generated, created_at, posted_at)
+          replies(id, content, status, is_ai_generated, created_at, posted_at, needs_review)
         `)
         .eq('archived', true);
 

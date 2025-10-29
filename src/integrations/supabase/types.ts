@@ -136,6 +136,7 @@ export type Database = {
           created_at: string
           id: string
           is_ai_generated: boolean | null
+          needs_review: boolean | null
           posted_at: string | null
           review_id: string
           status: string
@@ -147,6 +148,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_ai_generated?: boolean | null
+          needs_review?: boolean | null
           posted_at?: string | null
           review_id: string
           status?: string
@@ -158,6 +160,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_ai_generated?: boolean | null
+          needs_review?: boolean | null
           posted_at?: string | null
           review_id?: string
           status?: string
@@ -192,10 +195,13 @@ export type Database = {
           google_review_id: string
           has_google_reply: boolean | null
           id: string
+          last_rating_change_at: string | null
           location_id: string
           rating: number
+          rating_history: Json | null
           review_created_at: string
           sentiment: string | null
+          sentiment_mismatch: boolean | null
           text: string | null
           updated_at: string
         }
@@ -209,10 +215,13 @@ export type Database = {
           google_review_id: string
           has_google_reply?: boolean | null
           id?: string
+          last_rating_change_at?: string | null
           location_id: string
           rating: number
+          rating_history?: Json | null
           review_created_at: string
           sentiment?: string | null
+          sentiment_mismatch?: boolean | null
           text?: string | null
           updated_at?: string
         }
@@ -226,10 +235,13 @@ export type Database = {
           google_review_id?: string
           has_google_reply?: boolean | null
           id?: string
+          last_rating_change_at?: string | null
           location_id?: string
           rating?: number
+          rating_history?: Json | null
           review_created_at?: string
           sentiment?: string | null
+          sentiment_mismatch?: boolean | null
           text?: string | null
           updated_at?: string
         }

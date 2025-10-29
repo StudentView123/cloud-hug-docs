@@ -15,6 +15,9 @@ export interface Review {
   google_reply_content: string | null;
   google_reply_time: string | null;
   has_google_reply: boolean;
+  rating_history: any;
+  last_rating_change_at: string | null;
+  sentiment_mismatch: boolean | null;
   location?: {
     id: string;
     name: string;
@@ -27,6 +30,7 @@ export interface Review {
     is_ai_generated: boolean;
     created_at: string;
     posted_at: string | null;
+    needs_review: boolean;
   }>;
 }
 
@@ -39,7 +43,7 @@ export const useReviews = () => {
         .select(`
           *,
           location:locations(id, name, address),
-          replies(id, content, status, is_ai_generated, created_at, posted_at)
+          replies(id, content, status, is_ai_generated, created_at, posted_at, needs_review)
         `)
         .eq('archived', false)
         .order("review_created_at", { ascending: false });

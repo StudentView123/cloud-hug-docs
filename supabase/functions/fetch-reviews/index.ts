@@ -292,27 +292,96 @@ serve(async (req) => {
             
             const { data: existingReview } = await supabase
               .from('reviews')
-              .select('id, has_google_reply, google_reply_content, archived')
+              .select('id, has_google_reply, google_reply_content, archived, rating, rating_history, sentiment')
               .eq('google_review_id', review.name || review.reviewId)
               .maybeSingle();
 
             if (existingReview) {
-              // Update if reply status changed, content changed, or archived is null/incorrect
+              // Calculate current rating
+              const currentRating = typeof review.starRating === 'number' ? review.starRating : 
+                                   review.starRating === 'FIVE' ? 5 : 
+                                   review.starRating === 'FOUR' ? 4 : 
+                                   review.starRating === 'THREE' ? 3 : 
+                                   review.starRating === 'TWO' ? 2 : 1;
+              
+              const getSentiment = (rating: number) => rating >= 4 ? 'positive' : rating === 3 ? 'neutral' : 'negative';
+              const newSentiment = getSentiment(currentRating);
+              
+              // Check for rating change
+              const ratingChanged = existingReview.rating !== currentRating;
+              let ratingHistory = existingReview.rating_history || [];
+              let hasDraftReply = false;
+              
+              if (ratingChanged) {
+                console.log(`📊 Rating changed for review ${existingReview.id}: ${existingReview.rating}★ → ${currentRating}★`);
+                
+                // Add to rating history
+                ratingHistory = [
+                  ...(Array.isArray(ratingHistory) ? ratingHistory : []),
+                  {
+                    rating: existingReview.rating,
+                    changed_at: new Date().toISOString(),
+                  }
+                ];
+                
+                // Log activity
+                await supabase.from('activity_logs').insert({
+                  user_id: user.id,
+                  review_id: existingReview.id,
+                  action: 'review_rating_changed',
+                  details: {
+                    old_rating: existingReview.rating,
+                    new_rating: currentRating,
+                    old_sentiment: existingReview.sentiment,
+                    new_sentiment: newSentiment,
+                  }
+                });
+                
+                // Check if there's a draft reply that needs flagging
+                const { data: draftReply } = await supabase
+                  .from('replies')
+                  .select('id')
+                  .eq('review_id', existingReview.id)
+                  .eq('status', 'draft')
+                  .single();
+                
+                if (draftReply) {
+                  hasDraftReply = true;
+                  await supabase
+                    .from('replies')
+                    .update({ needs_review: true })
+                    .eq('id', draftReply.id);
+                  console.log(`⚠️ Flagged draft reply ${draftReply.id} for review`);
+                }
+              }
+              
+              // Update if reply status changed, content changed, archived is null/incorrect, or rating changed
               const needsUpdate = 
                 existingReview.has_google_reply !== hasGoogleReply || 
                 existingReview.google_reply_content !== googleReplyContent ||
                 existingReview.archived === null ||
-                existingReview.archived !== hasGoogleReply;
+                existingReview.archived !== hasGoogleReply ||
+                ratingChanged;
               
               if (needsUpdate) {
+                const updateData: any = { 
+                  has_google_reply: hasGoogleReply,
+                  google_reply_content: googleReplyContent,
+                  google_reply_time: googleReplyTime,
+                  archived: hasGoogleReply
+                };
+                
+                if (ratingChanged) {
+                  updateData.rating = currentRating;
+                  updateData.sentiment = newSentiment;
+                  updateData.rating_history = ratingHistory;
+                  updateData.last_rating_change_at = new Date().toISOString();
+                  updateData.sentiment_mismatch = hasDraftReply;
+                }
+                
                 const { error: updateError } = await supabase
                   .from('reviews')
-                  .update({ 
-                    has_google_reply: hasGoogleReply,
-                    google_reply_content: googleReplyContent,
-                    google_reply_time: googleReplyTime,
-                    archived: hasGoogleReply
-                  })
+                  .update(updateData)
                   .eq('id', existingReview.id);
                 
                 if (updateError) {
@@ -323,7 +392,7 @@ serve(async (req) => {
                   } else {
                     updatedToArchivedFalse++;
                   }
-                  console.log(`✓ Updated review ${existingReview.id} - archived: ${hasGoogleReply}`);
+                  console.log(`✓ Updated review ${existingReview.id} - archived: ${hasGoogleReply}${ratingChanged ? ', rating changed' : ''}`);
                 }
               }
             } else if (locationId) {

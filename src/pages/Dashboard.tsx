@@ -33,6 +33,7 @@ const Dashboard = () => {
   const [selectedLocationId, setSelectedLocationId] = useState<string>("all");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [selectedRating, setSelectedRating] = useState<string>("all");
+  const [selectedFilter, setSelectedFilter] = useState<string>("all");
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [selectedReviewIds, setSelectedReviewIds] = useState<Set<string>>(new Set());
   const [bulkGenerating, setBulkGenerating] = useState(false);
@@ -477,6 +478,12 @@ const Dashboard = () => {
   const filteredReviews = reviews
     ?.filter(r => selectedLocationId === "all" || r.location_id === selectedLocationId)
     ?.filter(r => selectedRating === "all" || r.rating === parseInt(selectedRating))
+    ?.filter(r => {
+      if (selectedFilter === "all") return true;
+      if (selectedFilter === "updated") return r.last_rating_change_at !== null;
+      if (selectedFilter === "needs-review") return r.replies?.some(reply => reply.needs_review);
+      return true;
+    })
     ?.sort((a, b) => {
       const dateA = new Date(a.review_created_at).getTime();
       const dateB = new Date(b.review_created_at).getTime();
@@ -488,11 +495,25 @@ const Dashboard = () => {
   const averageRating = reviews?.length 
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
     : "0.0";
+  const updatedReviews = reviews?.filter(r => r.last_rating_change_at !== null).length || 0;
+  const needsReviewCount = reviews?.filter(r => r.replies?.some(reply => reply.needs_review)).length || 0;
 
   return (
     <Layout>
       <div className="flex h-16 items-center justify-between border-b border-border px-8">
-        <h2>Dashboard</h2>
+        <div className="flex items-center gap-3">
+          <h2>Dashboard</h2>
+          {needsReviewCount > 0 && (
+            <Badge variant="outline" className="border-warning text-warning animate-pulse">
+              {needsReviewCount} {needsReviewCount === 1 ? 'reply needs' : 'replies need'} review
+            </Badge>
+          )}
+          {updatedReviews > 0 && (
+            <Badge variant="secondary" className="bg-info/10 text-info border-info">
+              {updatedReviews} updated {updatedReviews === 1 ? 'review' : 'reviews'}
+            </Badge>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <Button 
             variant="outline" 
@@ -614,6 +635,17 @@ const Dashboard = () => {
                   </SelectContent>
                 </Select>
                 
+                <Select value={selectedFilter} onValueChange={setSelectedFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Reviews</SelectItem>
+                    <SelectItem value="updated">Updated Reviews</SelectItem>
+                    <SelectItem value="needs-review">Needs Review</SelectItem>
+                  </SelectContent>
+                </Select>
+                
                 <Select value={selectedRating} onValueChange={setSelectedRating}>
                   <SelectTrigger className="w-[160px]">
                     <SelectValue placeholder="All Ratings" />
@@ -730,7 +762,7 @@ const Dashboard = () => {
                     {/* Review Header */}
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 flex-wrap">
                           <h3 className="font-semibold">{review.author_name}</h3>
                           {review.sentiment && (
                             <Badge
@@ -744,6 +776,16 @@ const Dashboard = () => {
                               }
                             >
                               {review.sentiment}
+                            </Badge>
+                          )}
+                          {review.last_rating_change_at && review.rating_history && Array.isArray(review.rating_history) && review.rating_history.length > 0 && (
+                            <Badge variant="secondary" className="bg-info/10 text-info border-info">
+                              Updated: {review.rating_history[review.rating_history.length - 1]?.rating}★ → {review.rating}★
+                            </Badge>
+                          )}
+                          {existingReply?.needs_review && (
+                            <Badge variant="outline" className="border-warning text-warning animate-pulse">
+                              Reply Needs Review
                             </Badge>
                           )}
                         </div>
@@ -838,6 +880,20 @@ const Dashboard = () => {
                               </>
                             ) : (
                               <>
+                                 {existingReply.needs_review && (
+                                   <Button
+                                     size="sm"
+                                     variant="outline"
+                                     onClick={async () => {
+                                       await handleGenerateReply(review.id, review.text || "", review.rating);
+                                     }}
+                                     disabled={generatingReply === review.id || isBulkMode}
+                                     className="border-warning text-warning hover:bg-warning/10"
+                                   >
+                                     <RefreshCw className={`h-4 w-4 ${generatingReply === review.id ? 'animate-spin' : ''}`} />
+                                     Regenerate Reply
+                                   </Button>
+                                 )}
                                  <Button
                                    size="sm"
                                    variant="outline"
