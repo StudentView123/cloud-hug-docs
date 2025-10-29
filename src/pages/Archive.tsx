@@ -62,12 +62,12 @@ const Archive = () => {
               <SelectItem value="all">All Locations</SelectItem>
               {locations?.map((location) => (
                 <SelectItem key={location.id} value={location.id}>
-                  <div className="flex flex-col">
-                    <span className="font-medium">{location.name}</span>
-                    {location.address && (
-                      <span className="text-xs text-muted-foreground">{location.address}</span>
-                    )}
-                  </div>
+                  {location.name}
+                  {location.address && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      • {location.address}
+                    </span>
+                  )}
                 </SelectItem>
               ))}
             </SelectContent>
