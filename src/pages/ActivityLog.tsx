@@ -4,17 +4,19 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Clock, RefreshCw, TrendingUp, Star } from "lucide-react";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { formatDistanceToNow } from "date-fns";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const ActivityLog = () => {
   const { data: activities, isLoading } = useActivityLog();
+  const isMobile = useIsMobile();
 
   return (
     <Layout>
-      <div className="flex h-16 items-center border-b border-border px-8">
+      <div className={`flex h-16 items-center border-b border-border ${isMobile ? 'px-4' : 'px-8'}`}>
         <h2>Activity Log</h2>
       </div>
 
-      <div className="p-8">
+      <div className={isMobile ? 'p-4' : 'p-8'}>
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />

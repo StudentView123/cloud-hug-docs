@@ -16,6 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useCheckSyncStatus, useSyncMissingReviews, SyncStatusResponse } from "@/hooks/useSyncStatus";
 import { SyncStatusDialog } from "@/components/SyncStatusDialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ const Dashboard = () => {
   const queryClient = useQueryClient();
   const [fetchingReviews, setFetchingReviews] = useState(false);
   const [generatingReply, setGeneratingReply] = useState<string | null>(null);
+  const isMobile = useIsMobile();
   
   const [postingReply, setPostingReply] = useState<string | null>(null);
   const [editingReply, setEditingReply] = useState<string | null>(null);
@@ -500,29 +502,30 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <div className="flex h-16 items-center justify-between border-b border-border px-8">
-        <div className="flex items-center gap-3">
+      <div className={`flex ${isMobile ? 'flex-col gap-3 p-4' : 'h-16 items-center justify-between px-8'} border-b border-border`}>
+        <div className="flex items-center gap-3 flex-wrap">
           <h2>Dashboard</h2>
           {needsReviewCount > 0 && (
             <Badge variant="outline" className="border-warning text-warning animate-pulse">
-              {needsReviewCount} {needsReviewCount === 1 ? 'reply needs' : 'replies need'} review
+              {needsReviewCount} {needsReviewCount === 1 ? 'needs' : 'need'} review
             </Badge>
           )}
           {updatedReviews > 0 && (
             <Badge variant="secondary" className="bg-info/10 text-info border-info">
-              {updatedReviews} updated {updatedReviews === 1 ? 'review' : 'reviews'}
+              {updatedReviews} updated
             </Badge>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className={`flex ${isMobile ? 'flex-col w-full' : 'items-center'} gap-2`}>
           <Button 
             variant="outline" 
             size="sm"
             onClick={handleCheckSyncStatus}
             disabled={checkingSyncStatus}
+            className={isMobile ? 'w-full justify-start' : ''}
           >
             <BarChart3 className={`h-4 w-4 ${checkingSyncStatus ? 'animate-spin' : ''}`} />
-            Check Sync Status
+            {isMobile ? 'Check Sync' : 'Check Sync Status'}
           </Button>
           {syncStatus && syncStatus.summary.needs_sync > 0 && (
             <Button 
@@ -530,9 +533,10 @@ const Dashboard = () => {
               size="sm"
               onClick={handleSyncMissingReviews}
               disabled={fetchingReviews}
+              className={isMobile ? 'w-full justify-start' : ''}
             >
               <RefreshCw className={`h-4 w-4 ${fetchingReviews ? 'animate-spin' : ''}`} />
-              Sync Missing Reviews
+              {isMobile ? 'Sync Missing' : 'Sync Missing Reviews'}
             </Button>
           )}
           <Button 
@@ -540,6 +544,7 @@ const Dashboard = () => {
             size="sm"
             onClick={handleFetchReviews}
             disabled={fetchingReviews}
+            className={isMobile ? 'w-full justify-start' : ''}
           >
             <RefreshCw className={`h-4 w-4 ${fetchingReviews ? 'animate-spin' : ''}`} />
             Full Refresh
@@ -555,21 +560,23 @@ const Dashboard = () => {
         syncing={syncingLocation}
       />
 
-      <div className="p-8">
+      <div className={isMobile ? 'p-4' : 'p-8'}>
         {/* Alert Banner for Sentiment Mismatches */}
         {needsReviewCount > 0 && (
           <Card className="mb-6 border-warning bg-warning/10">
-            <div className="flex items-center gap-3 p-4">
-              <AlertTriangle className="h-5 w-5 text-warning" />
-              <div className="flex-1">
-                <p className="font-medium text-foreground">
-                  {needsReviewCount} {needsReviewCount === 1 ? 'review needs' : 'reviews need'} attention due to rating changes
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Draft replies may no longer match the updated ratings. Review and regenerate as needed.
-                </p>
+            <div className={`flex ${isMobile ? 'flex-col' : 'items-center'} gap-3 p-4`}>
+              <div className="flex items-center gap-3 flex-1">
+                <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="font-medium text-foreground">
+                    {needsReviewCount} {needsReviewCount === 1 ? 'review needs' : 'reviews need'} attention due to rating changes
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Draft replies may no longer match the updated ratings. Review and regenerate as needed.
+                  </p>
+                </div>
               </div>
-              <Button variant="outline" onClick={() => navigate('/review-audit')}>
+              <Button variant="outline" onClick={() => navigate('/review-audit')} className={isMobile ? 'w-full' : ''}>
                 View Audit Dashboard
               </Button>
             </div>

@@ -9,6 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Locations = () => {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ const Locations = () => {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { data: locations, isLoading } = useLocations();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const checkSession = async () => {
@@ -78,20 +80,21 @@ const Locations = () => {
 
   return (
     <Layout>
-      <div className="flex h-16 items-center justify-between border-b border-border px-8">
+      <div className={`flex ${isMobile ? 'flex-col gap-3' : 'h-16 items-center justify-between'} border-b border-border ${isMobile ? 'p-4' : 'px-8'}`}>
         <h2>Locations</h2>
         <Button
           variant="outline"
           size="sm"
           onClick={handleRefresh}
           disabled={isRefreshing || checkingAuth || isLoading}
+          className={isMobile ? 'w-full' : ''}
         >
           <RefreshCw className={isRefreshing ? "animate-spin" : ""} />
           Refresh Counts
         </Button>
       </div>
 
-      <div className="p-8">
+      <div className={isMobile ? 'p-4' : 'p-8'}>
         <p className="mb-6 text-muted-foreground">
           Your Google Business Profile locations
         </p>

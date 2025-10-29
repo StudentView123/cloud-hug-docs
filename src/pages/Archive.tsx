@@ -8,6 +8,7 @@ import { useArchive } from "@/hooks/useArchive";
 import { useLocations } from "@/hooks/useLocations";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Archive = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -15,6 +16,7 @@ const Archive = () => {
   const [selectedRating, setSelectedRating] = useState<string>("all");
   const { data: reviews, isLoading } = useArchive(searchTerm);
   const { data: locations } = useLocations();
+  const isMobile = useIsMobile();
 
   const getSentimentColor = (sentiment: string | null) => {
     if (!sentiment) return "secondary";
@@ -31,10 +33,10 @@ const Archive = () => {
 
   return (
     <Layout>
-      <div className="p-8">
+      <div className={isMobile ? 'p-4' : 'p-8'}>
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
-            <ArchiveIcon className="h-8 w-8" />
+          <h1 className={`${isMobile ? 'text-2xl' : 'text-3xl'} font-bold mb-2 flex items-center gap-2`}>
+            <ArchiveIcon className={isMobile ? 'h-6 w-6' : 'h-8 w-8'} />
             Review Archive
           </h1>
           <p className="text-muted-foreground">
@@ -43,7 +45,7 @@ const Archive = () => {
         </div>
 
         {/* Search and Filters */}
-        <div className="grid gap-4 mb-6 md:grid-cols-4">
+        <div className={`grid gap-4 mb-6 ${isMobile ? 'grid-cols-1' : 'md:grid-cols-4'}`}>
           <div className="relative md:col-span-2">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input

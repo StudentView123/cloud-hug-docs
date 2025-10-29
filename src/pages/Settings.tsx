@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLocations } from "@/hooks/useLocations";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ const Settings = () => {
   const [listingLocations, setListingLocations] = useState(false);
   const [syncingLocations, setSyncingLocations] = useState(false);
   const { data: locations, isLoading: locationsLoading, refetch: refetchLocations } = useLocations();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -216,11 +218,11 @@ const Settings = () => {
 
   return (
     <Layout>
-      <div className="flex h-16 items-center border-b border-border px-8">
+      <div className={`flex h-16 items-center border-b border-border ${isMobile ? 'px-4' : 'px-8'}`}>
         <h2>Settings</h2>
       </div>
 
-      <div className="p-8">
+      <div className={isMobile ? 'p-4' : 'p-8'}>
         <div className="max-w-2xl space-y-6">
           <Card className="p-6">
             <h3 className="mb-4">Google Business Profile Connection</h3>
@@ -245,7 +247,7 @@ const Settings = () => {
                     </Badge>
                   </div>
                   <div className="space-y-2">
-                    <div className="flex gap-2">
+                    <div className={`flex ${isMobile ? 'flex-col' : ''} gap-2`}>
                       <Button 
                         variant="outline" 
                         className="flex-1"
@@ -253,7 +255,7 @@ const Settings = () => {
                         disabled={checkingConnection}
                       >
                         <Shield className={`mr-2 h-4 w-4 ${checkingConnection ? 'animate-spin' : ''}`} />
-                        Check Connection
+                        {isMobile ? 'Check' : 'Check Connection'}
                       </Button>
                       <Button 
                         variant="outline" 
@@ -264,7 +266,7 @@ const Settings = () => {
                         Reconnect
                       </Button>
                     </div>
-                    <div className="flex gap-2">
+                    <div className={`flex ${isMobile ? 'flex-col' : ''} gap-2`}>
                       <Button 
                         variant="outline" 
                         className="flex-1"
