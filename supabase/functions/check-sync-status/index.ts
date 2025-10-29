@@ -138,8 +138,13 @@ serve(async (req) => {
         let staleGoogleCount: number | undefined;
         
         try {
-          // Try pageSize=0 first for maximum efficiency (only metadata)
-          const reviewsUrl = `https://mybusiness.googleapis.com/v4/${googleLocationId}/reviews?pageSize=0`;
+          // Construct proper URL with account prefix
+          // googleLocationId is like "locations/12345", we need "accounts/xxx/locations/12345"
+          const parentName = googleLocationId.startsWith('accounts/')
+            ? googleLocationId
+            : `${account.name}/${googleLocationId}`;
+          
+          const reviewsUrl = `https://mybusiness.googleapis.com/v4/${parentName}/reviews?pageSize=0`;
           console.log(`Fetching review count for ${locationName}: ${reviewsUrl}`);
           
           const reviewsResponse = await fetch(reviewsUrl, {
