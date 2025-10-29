@@ -128,7 +128,7 @@ const Locations = () => {
                           </>
                         )}
                         <span className="text-sm text-muted-foreground">
-                          ({reviewStats.total} reviews)
+                          ({location.review_count || reviewStats.total} reviews)
                         </span>
                       </div>
                       {reviewStats.pending > 0 && (
