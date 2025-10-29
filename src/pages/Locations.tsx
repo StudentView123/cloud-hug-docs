@@ -1,16 +1,20 @@
 import { Layout } from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Star, MapPin, RefreshCw } from "lucide-react";
 import { useLocations } from "@/hooks/useLocations";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const Locations = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { data: locations, isLoading } = useLocations();
 
   useEffect(() => {
@@ -23,6 +27,14 @@ const Locations = () => {
     };
     checkSession();
   }, [navigate]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ["locations"] });
+    await queryClient.invalidateQueries({ queryKey: ["review-counts-by-location"] });
+    setIsRefreshing(false);
+    toast.success("Review counts refreshed");
+  };
   
   // Get review counts for each location
   const { data: reviewCountsByLocation } = useQuery({
@@ -66,8 +78,17 @@ const Locations = () => {
 
   return (
     <Layout>
-      <div className="flex h-16 items-center border-b border-border px-8">
+      <div className="flex h-16 items-center justify-between border-b border-border px-8">
         <h2>Locations</h2>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={isRefreshing || checkingAuth || isLoading}
+        >
+          <RefreshCw className={isRefreshing ? "animate-spin" : ""} />
+          Refresh Counts
+        </Button>
       </div>
 
       <div className="p-8">
