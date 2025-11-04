@@ -72,6 +72,18 @@ const Index = () => {
           </div>
         </div>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-border/50 mt-20">
+        <div className="container mx-auto px-4 py-6 text-center">
+          <a 
+            href="/privacy" 
+            className="text-sm text-muted-foreground hover:text-primary transition-colors"
+          >
+            Privacy Policy
+          </a>
+        </div>
+      </footer>
     </div>
   );
 };

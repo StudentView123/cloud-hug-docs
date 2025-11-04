@@ -13,6 +13,7 @@ import ActivityLog from "./pages/ActivityLog";
 import ReviewAudit from "./pages/ReviewAudit";
 import Settings from "./pages/Settings";
 import Install from "./pages/Install";
+import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/review-audit" element={<ReviewAudit />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/install" element={<Install />} />
+          <Route path="/privacy" element={<Privacy />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
