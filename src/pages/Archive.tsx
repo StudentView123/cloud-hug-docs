@@ -95,6 +95,7 @@ const Archive = () => {
   return (
     <Layout>
       <div className={isMobile ? 'p-4' : 'p-8'}>
+        <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className={`${isMobile ? 'text-2xl' : 'text-3xl'} font-bold mb-2 flex items-center gap-2`}>
             <ArchiveIcon className={isMobile ? 'h-6 w-6' : 'h-8 w-8'} />
@@ -106,7 +107,7 @@ const Archive = () => {
         </div>
 
         {/* Search and Filters */}
-        <div className={`grid gap-4 mb-6 ${isMobile ? 'grid-cols-1' : 'md:grid-cols-4'}`}>
+        <div className="grid gap-4 mb-6 grid-cols-1 md:grid-cols-4">
           <div className="relative md:col-span-2">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
@@ -177,21 +178,21 @@ const Archive = () => {
               const reply = review.replies?.[0];
               
               return (
-                <Card key={review.id} className="p-6">
-                  <div className="flex items-start gap-4">
+                <Card key={review.id} className="p-4 sm:p-6 overflow-hidden">
+                  <div className="flex flex-col sm:flex-row items-start gap-4">
                     {review.author_photo_url && (
                       <img
                         src={review.author_photo_url}
                         alt={review.author_name}
-                        className="w-12 h-12 rounded-full"
+                        className="w-12 h-12 rounded-full flex-shrink-0"
                       />
                     )}
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <h3 className="font-semibold">{review.author_name}</h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <div className="flex">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold truncate">{review.author_name}</h3>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <div className="flex flex-shrink-0">
                               {Array.from({ length: 5 }).map((_, i) => (
                                 <Star
                                   key={i}
@@ -204,20 +205,20 @@ const Archive = () => {
                               ))}
                             </div>
                             {review.sentiment && (
-                              <Badge variant={getSentimentColor(review.sentiment)}>
+                              <Badge variant={getSentimentColor(review.sentiment)} className="text-xs">
                                 {review.sentiment}
                               </Badge>
                             )}
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm text-muted-foreground">
+                        <div className="text-left sm:text-right flex-shrink-0">
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             {formatDistanceToNow(new Date(review.review_created_at), {
                               addSuffix: true,
                             })}
                           </p>
                           {review.location && (
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="text-xs text-muted-foreground mt-1 truncate">
                               {review.location.name}
                             </p>
                           )}
@@ -225,15 +226,15 @@ const Archive = () => {
                       </div>
 
                       {review.text && (
-                        <p className="text-sm mb-4 text-foreground">{review.text}</p>
+                        <p className="text-sm mb-4 text-foreground break-words">{review.text}</p>
                       )}
 
                       {/* Display Reply - prioritize Google replies */}
                       {(review.google_reply_content || reply) && (
-                        <div className="mt-4 p-4 bg-muted rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline">
+                        <div className="mt-4 p-3 sm:p-4 bg-muted rounded-lg">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-2 mb-2">
+                            <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                              <Badge variant="outline" className="text-xs flex-shrink-0">
                                 {review.google_reply_content 
                                   ? "Google Reply" 
                                   : reply?.is_ai_generated 
@@ -241,7 +242,7 @@ const Archive = () => {
                                     : "Manual Reply"}
                               </Badge>
                               {(review.google_reply_time || reply?.posted_at) && (
-                                <span className="text-xs text-muted-foreground">
+                                <span className="text-xs text-muted-foreground truncate">
                                   Posted {formatDistanceToNow(
                                     new Date(review.google_reply_time || reply!.posted_at!), 
                                     { addSuffix: true }
@@ -253,12 +254,13 @@ const Archive = () => {
                               size="sm"
                               variant={isTrainingExample(review.id) ? "default" : "outline"}
                               onClick={() => handleToggleTrainingExample(review)}
+                              className="w-full sm:w-auto flex-shrink-0 text-xs sm:text-sm"
                             >
-                              <Star className={`h-4 w-4 mr-1 ${isTrainingExample(review.id) ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                              <Star className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 ${isTrainingExample(review.id) ? 'fill-yellow-400 text-yellow-400' : ''}`} />
                               {isTrainingExample(review.id) ? 'Training Example' : 'Use for Training'}
                             </Button>
                           </div>
-                          <p className="text-sm">
+                          <p className="text-xs sm:text-sm break-words">
                             {review.google_reply_content || reply?.content}
                           </p>
                         </div>
@@ -291,6 +293,7 @@ const Archive = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
     </Layout>
   );
