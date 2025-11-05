@@ -582,7 +582,7 @@ const Dashboard = () => {
             </div>
           </Card>
         )}
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3 overflow-hidden">
           <Card className="p-4 sm:p-6">
             <div className="flex items-center gap-3 min-w-0">
               <div className="rounded-lg bg-success/10 p-2 sm:p-3 flex-shrink-0">
@@ -641,7 +641,7 @@ const Dashboard = () => {
               <p className="text-sm text-muted-foreground">
                 Showing {filteredReviews?.length || 0} of {reviews.length} reviews
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
                 <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="All Locations" />
@@ -650,9 +650,9 @@ const Dashboard = () => {
                     <SelectItem value="all">All Locations</SelectItem>
                     {locations?.map((location) => (
                       <SelectItem key={location.id} value={location.id}>
-                        {location.name}
+                        <span className="truncate">{location.name}</span>
                         {location.address && (
-                          <span className="text-xs text-muted-foreground ml-2">
+                          <span className="text-xs text-muted-foreground ml-2 truncate">
                             • {location.address}
                           </span>
                         )}
@@ -828,7 +828,7 @@ const Dashboard = () => {
                           {review.location && (
                             <>
                               <span className="hidden sm:inline">•</span>
-                              <span className="truncate max-w-[200px]">{review.location.name}</span>
+                              <span className="truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">{review.location.name}</span>
                             </>
                           )}
                         </div>
