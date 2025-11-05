@@ -95,24 +95,107 @@ serve(async (req) => {
 
     let generatedReply: string;
 
-    // If review has no substantive text, use default response
+    // If review has no substantive text, check for custom templates
     if (!hasSubstantiveText) {
-      console.log('Review has no text, using default response for', rating, 'stars');
-      generatedReply = getDefaultResponse(rating);
+      console.log('Review has no text, checking for custom templates');
+      
+      // Get all active templates for this rating
+      const { data: templates } = await supabase
+        .from('quick_reply_templates')
+        .select('id, template_text, last_used_at, usage_count')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .gte('rating_max', rating)
+        .lte('rating_min', rating)
+        .order('last_used_at', { ascending: true, nullsFirst: true });
+
+      if (templates && templates.length > 0) {
+        // Get recently used template IDs (last 10 reviews)
+        const { data: recentUsage } = await supabase
+          .from('quick_reply_usage_history')
+          .select('template_id')
+          .eq('user_id', user.id)
+          .order('used_at', { ascending: false })
+          .limit(10);
+
+        const recentlyUsedIds = new Set(recentUsage?.map(u => u.template_id) || []);
+        
+        // Filter out recently used templates
+        const availableTemplates = templates.filter(t => !recentlyUsedIds.has(t.id));
+        
+        // Select least recently used (or random if all were recent)
+        const selectedTemplate = availableTemplates.length > 0
+          ? availableTemplates[0]
+          : templates[Math.floor(Math.random() * templates.length)];
+
+        generatedReply = selectedTemplate.template_text;
+
+        // Record usage
+        await supabase.from('quick_reply_usage_history').insert({
+          user_id: user.id,
+          template_id: selectedTemplate.id,
+          review_id: reviewId
+        });
+
+        // Update template stats
+        await supabase
+          .from('quick_reply_templates')
+          .update({ 
+            last_used_at: new Date().toISOString(),
+            usage_count: selectedTemplate.usage_count + 1 
+          })
+          .eq('id', selectedTemplate.id);
+      } else {
+        // Fallback to default responses
+        console.log('No custom templates found, using default response for', rating, 'stars');
+        generatedReply = getDefaultResponse(rating);
+      }
     } else {
-      // Original AI generation logic for reviews with text
+      // AI generation logic for reviews with text
       const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
       if (!LOVABLE_API_KEY) {
         throw new Error('LOVABLE_API_KEY not configured');
       }
 
       const sentiment = rating >= 4 ? 'positive' : rating === 3 ? 'neutral' : 'negative';
-      const systemPrompt = `You are a professional customer service representative writing responses to Google Business reviews. 
-Generate a professional, empathetic response that:
-- Thanks the customer for their feedback
-- ${sentiment === 'positive' ? 'Expresses appreciation for their positive experience' : sentiment === 'negative' ? 'Apologizes for any issues and offers to make things right' : 'Acknowledges their feedback'}
-- Keeps the response concise (2-3 sentences)
-- Maintains a friendly, professional tone
+      
+      // Fetch user's style settings
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('reply_style_settings')
+        .eq('id', user.id)
+        .single();
+
+      const settings = profile?.reply_style_settings || {};
+      
+      // Fetch training examples matching sentiment
+      const { data: examples } = await supabase
+        .from('training_examples')
+        .select('review_text, reply_content, review_rating, sentiment, notes')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .eq('sentiment', sentiment)
+        .limit(3);
+
+      // Build dynamic system prompt
+      let systemPrompt = `You are a professional customer service representative writing responses to Google Business reviews.
+
+Style Guidelines:
+- Formality: ${settings.formality || 'professional'}
+- Length: ${settings.length || 'concise'} (2-3 sentences)
+- Personality: ${settings.personality || 'friendly'}
+
+${settings.custom_instructions ? `Additional Instructions:\n${settings.custom_instructions}\n` : ''}
+
+${settings.avoid_phrases?.length ? `NEVER use these exact phrases:\n${settings.avoid_phrases.map((p: string) => `- "${p}"`).join('\n')}\n` : ''}
+
+${settings.variation_strength === 'high' ? 'IMPORTANT: Generate UNIQUE phrasing. Avoid common customer service clichés. Be creative and natural. Do not start with the same phrase as previous replies.\n' : ''}
+
+${examples && examples.length > 0 ? `Here are examples of replies we like:\n${examples.map((ex, i) => 
+  `Example ${i+1} (${ex.review_rating}-star):\nReview: "${ex.review_text}"\nOur Reply: "${ex.reply_content}"${ex.notes ? `\nWhy we like it: ${ex.notes}` : ''}`
+).join('\n\n')}\n\nMatch this tone and style, but make it unique for the current review.\n` : ''}
+
+Generate a response that thanks the customer, ${sentiment === 'positive' ? 'expresses appreciation for their positive experience' : sentiment === 'negative' ? 'apologizes for any issues and offers to make things right' : 'acknowledges their feedback'}, and maintains the specified style.
 Do not use generic phrases. Make it specific to their review when possible.`;
 
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {

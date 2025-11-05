@@ -4,12 +4,17 @@ import { Layout } from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle2, RefreshCw, LogOut, AlertCircle, Shield, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLocations } from "@/hooks/useLocations";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { AISettingsTab } from "@/components/settings/AISettingsTab";
+import { QuickReplyTemplatesTab } from "@/components/settings/QuickReplyTemplatesTab";
+import { TrainingExamplesTab } from "@/components/settings/TrainingExamplesTab";
+import { GenerationAnalyticsTab } from "@/components/settings/GenerationAnalyticsTab";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -574,18 +579,35 @@ const Settings = () => {
                   Configure
                 </Button>
               </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">AI reply tone</p>
-                  <p className="text-sm text-muted-foreground">
-                    Customize automatic reply style
-                  </p>
-                </div>
-                <Button variant="outline" size="sm">
-                  Customize
-                </Button>
-              </div>
             </div>
+          </Card>
+
+          <Card className="p-6">
+            <h3 className="mb-4 font-medium text-lg">AI Reply Management</h3>
+            <Tabs defaultValue="ai-settings">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="ai-settings">AI Settings</TabsTrigger>
+                <TabsTrigger value="quick-replies">Quick Replies</TabsTrigger>
+                <TabsTrigger value="training">Training</TabsTrigger>
+                <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="ai-settings">
+                <AISettingsTab />
+              </TabsContent>
+              
+              <TabsContent value="quick-replies">
+                <QuickReplyTemplatesTab />
+              </TabsContent>
+              
+              <TabsContent value="training">
+                <TrainingExamplesTab />
+              </TabsContent>
+              
+              <TabsContent value="analytics">
+                <GenerationAnalyticsTab />
+              </TabsContent>
+            </Tabs>
           </Card>
 
           <Card className="p-6">

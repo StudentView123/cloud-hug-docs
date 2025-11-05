@@ -107,6 +107,7 @@ export type Database = {
           google_access_token: string | null
           google_refresh_token: string | null
           id: string
+          reply_style_settings: Json | null
           token_expires_at: string | null
           updated_at: string
         }
@@ -116,6 +117,7 @@ export type Database = {
           google_access_token?: string | null
           google_refresh_token?: string | null
           id: string
+          reply_style_settings?: Json | null
           token_expires_at?: string | null
           updated_at?: string
         }
@@ -125,10 +127,101 @@ export type Database = {
           google_access_token?: string | null
           google_refresh_token?: string | null
           id?: string
+          reply_style_settings?: Json | null
           token_expires_at?: string | null
           updated_at?: string
         }
         Relationships: []
+      }
+      quick_reply_templates: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          last_used_at: string | null
+          rating_max: number
+          rating_min: number
+          template_text: string
+          usage_count: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          rating_max: number
+          rating_min: number
+          template_text: string
+          usage_count?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          rating_max?: number
+          rating_min?: number
+          template_text?: string
+          usage_count?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quick_reply_templates_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quick_reply_usage_history: {
+        Row: {
+          id: string
+          review_id: string | null
+          template_id: string | null
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          review_id?: string | null
+          template_id?: string | null
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          review_id?: string | null
+          template_id?: string | null
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quick_reply_usage_history_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "reviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quick_reply_usage_history_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "quick_reply_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quick_reply_usage_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       replies: {
         Row: {
@@ -251,6 +344,60 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_examples: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          notes: string | null
+          reply_content: string
+          review_id: string | null
+          review_rating: number
+          review_text: string | null
+          sentiment: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          reply_content: string
+          review_id?: string | null
+          review_rating: number
+          review_text?: string | null
+          sentiment: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          reply_content?: string
+          review_id?: string | null
+          review_rating?: number
+          review_text?: string | null
+          sentiment?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_examples_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "reviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_examples_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
