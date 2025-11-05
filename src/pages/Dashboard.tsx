@@ -503,15 +503,15 @@ const Dashboard = () => {
   return (
     <Layout>
       <div className={`flex ${isMobile ? 'flex-col gap-3 p-4' : 'h-16 items-center justify-between px-8'} border-b border-border`}>
-        <div className="flex items-center gap-3 flex-wrap">
-          <h2>Dashboard</h2>
+        <div className="flex items-center gap-2 flex-wrap">
+          <h2 className="text-lg sm:text-2xl">Dashboard</h2>
           {needsReviewCount > 0 && (
-            <Badge variant="outline" className="border-warning text-warning animate-pulse">
+            <Badge variant="outline" className="border-warning text-warning animate-pulse text-xs">
               {needsReviewCount} {needsReviewCount === 1 ? 'needs' : 'need'} review
             </Badge>
           )}
           {updatedReviews > 0 && (
-            <Badge variant="secondary" className="bg-info/10 text-info border-info">
+            <Badge variant="secondary" className="bg-info/10 text-info border-info text-xs">
               {updatedReviews} updated
             </Badge>
           )}
@@ -560,7 +560,7 @@ const Dashboard = () => {
         syncing={syncingLocation}
       />
 
-      <div className={isMobile ? 'p-4' : 'p-8'}>
+      <div className={`max-w-7xl mx-auto ${isMobile ? 'p-4' : 'p-8'}`}>
         {/* Alert Banner for Sentiment Mismatches */}
         {needsReviewCount > 0 && (
           <Card className="mb-6 border-warning bg-warning/10">
@@ -582,39 +582,39 @@ const Dashboard = () => {
             </div>
           </Card>
         )}
-        <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-3">
-          <Card className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-success/10 p-3">
-                <ThumbsUp className="h-5 w-5 text-success" />
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
+          <Card className="p-4 sm:p-6">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="rounded-lg bg-success/10 p-2 sm:p-3 flex-shrink-0">
+                <ThumbsUp className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Positive Reviews</p>
-                <p className="text-2xl font-semibold">{positiveReviews}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">Positive Reviews</p>
+                <p className="text-xl sm:text-2xl font-semibold">{positiveReviews}</p>
               </div>
             </div>
           </Card>
           
-          <Card className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-warning/10 p-3">
-                <AlertCircle className="h-5 w-5 text-warning" />
+          <Card className="p-4 sm:p-6">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="rounded-lg bg-warning/10 p-2 sm:p-3 flex-shrink-0">
+                <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Unanswered Reviews</p>
-                <p className="text-2xl font-semibold">{unansweredReviews}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">Unanswered Reviews</p>
+                <p className="text-xl sm:text-2xl font-semibold">{unansweredReviews}</p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-primary/10 p-3">
-                <Star className="h-5 w-5 text-primary" />
+          <Card className="p-4 sm:p-6">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="rounded-lg bg-primary/10 p-2 sm:p-3 flex-shrink-0">
+                <Star className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Average Rating</p>
-                <p className="text-2xl font-semibold">{averageRating}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">Average Rating</p>
+                <p className="text-xl sm:text-2xl font-semibold">{averageRating}</p>
               </div>
             </div>
           </Card>
@@ -637,13 +637,13 @@ const Dashboard = () => {
           </Card>
         ) : (
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+            <div className="flex flex-col gap-4 mb-4">
               <p className="text-sm text-muted-foreground">
                 Showing {filteredReviews?.length || 0} of {reviews.length} reviews
               </p>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                 <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
-                  <SelectTrigger className="w-[200px]">
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="All Locations" />
                   </SelectTrigger>
                   <SelectContent>
@@ -662,7 +662,7 @@ const Dashboard = () => {
                 </Select>
                 
                 <Select value={selectedFilter} onValueChange={setSelectedFilter}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Filter" />
                   </SelectTrigger>
                   <SelectContent>
@@ -673,7 +673,7 @@ const Dashboard = () => {
                 </Select>
                 
                 <Select value={selectedRating} onValueChange={setSelectedRating}>
-                  <SelectTrigger className="w-[160px]">
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="All Ratings" />
                   </SelectTrigger>
                   <SelectContent>
@@ -690,25 +690,27 @@ const Dashboard = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => setSortOrder(sortOrder === "newest" ? "oldest" : "newest")}
+                  className="w-full"
                 >
                   <ArrowUpDown className="h-4 w-4 mr-2" />
-                  {sortOrder === "newest" ? "Newest First" : "Oldest First"}
-                </Button>
-                
-                <Button
-                  variant={isBulkMode ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setIsBulkMode(!isBulkMode);
-                    if (isBulkMode) {
-                      deselectAll();
-                    }
-                  }}
-                >
-                  <CheckSquare className="h-4 w-4 mr-2" />
-                  {isBulkMode ? "Exit Bulk Mode" : "Bulk Actions"}
+                  {sortOrder === "newest" ? "Newest" : "Oldest"}
                 </Button>
               </div>
+              
+              <Button
+                variant={isBulkMode ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setIsBulkMode(!isBulkMode);
+                  if (isBulkMode) {
+                    deselectAll();
+                  }
+                }}
+                className="w-full sm:w-auto"
+              >
+                <CheckSquare className="h-4 w-4 mr-2" />
+                {isBulkMode ? "Exit Bulk Mode" : "Bulk Actions"}
+              </Button>
             </div>
 
             {/* Bulk Actions Bar */}
@@ -768,7 +770,7 @@ const Dashboard = () => {
               return (
                 <Card 
                   key={review.id} 
-                  className={`p-6 transition-all ${isSelected ? 'ring-2 ring-primary' : ''} ${isBulkMode ? 'cursor-pointer hover:bg-accent/5' : ''}`}
+                  className={`p-4 sm:p-6 transition-all overflow-hidden ${isSelected ? 'ring-2 ring-primary' : ''} ${isBulkMode ? 'cursor-pointer hover:bg-accent/5' : ''}`}
                   onClick={() => isBulkMode && toggleReviewSelection(review.id)}
                 >
                   <div className="space-y-4">
@@ -786,47 +788,47 @@ const Dashboard = () => {
                       </div>
                     )}
                     {/* Review Header */}
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <h3 className="font-semibold">{review.author_name}</h3>
+                    <div className="flex items-start justify-between min-w-0">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold text-sm sm:text-base truncate">{review.author_name}</h3>
                           {review.sentiment && (
                             <Badge
                               variant="outline"
-                              className={
+                              className={`text-xs ${
                                 review.sentiment === "positive"
                                   ? "border-success text-success"
                                   : review.sentiment === "neutral"
                                   ? "border-warning text-warning"
                                   : "border-destructive text-destructive"
-                              }
+                              }`}
                             >
                               {review.sentiment}
                             </Badge>
                           )}
                           {review.last_rating_change_at && review.rating_history && Array.isArray(review.rating_history) && review.rating_history.length > 0 && (
-                            <Badge variant="secondary" className="bg-info/10 text-info border-info">
+                            <Badge variant="secondary" className="bg-info/10 text-info border-info text-xs">
                               Updated: {review.rating_history[review.rating_history.length - 1]?.rating}★ → {review.rating}★
                             </Badge>
                           )}
                           {existingReply?.needs_review && (
-                            <Badge variant="outline" className="border-warning text-warning animate-pulse">
+                            <Badge variant="outline" className="border-warning text-warning animate-pulse text-xs">
                               Reply Needs Review
                             </Badge>
                           )}
                         </div>
-                        <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-                          <div className="flex">
+                        <div className="mt-1 flex items-center gap-2 text-xs sm:text-sm text-muted-foreground flex-wrap">
+                          <div className="flex flex-shrink-0">
                             {Array.from({ length: review.rating }).map((_, i) => (
-                              <Star key={i} className="h-4 w-4 fill-primary text-primary" />
+                              <Star key={i} className="h-3 w-3 sm:h-4 sm:w-4 fill-primary text-primary" />
                             ))}
                           </div>
-                          <span>•</span>
-                          <span>{timeAgo}</span>
+                          <span className="hidden sm:inline">•</span>
+                          <span className="truncate">{timeAgo}</span>
                           {review.location && (
                             <>
-                              <span>•</span>
-                              <span>{review.location.name}</span>
+                              <span className="hidden sm:inline">•</span>
+                              <span className="truncate max-w-[200px]">{review.location.name}</span>
                             </>
                           )}
                         </div>
@@ -835,7 +837,7 @@ const Dashboard = () => {
 
                     {/* Review Text */}
                     {review.text && (
-                      <p className="text-foreground">{review.text}</p>
+                      <p className="text-foreground text-sm sm:text-base break-words">{review.text}</p>
                     )}
 
                     {/* Reply Section */}
