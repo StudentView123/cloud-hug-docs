@@ -502,7 +502,7 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <div className={`flex ${isMobile ? 'flex-col gap-3 p-4' : 'h-16 items-center justify-between px-8'} border-b border-border`}>
+      <div className={`flex ${isMobile ? 'flex-col gap-3 p-4' : 'h-16 items-center justify-between px-4 lg:px-8'} border-b border-border`}>
         <div className="flex items-center gap-2 flex-wrap">
           <h2 className="text-lg sm:text-2xl">Dashboard</h2>
           {needsReviewCount > 0 && (
@@ -560,7 +560,7 @@ const Dashboard = () => {
         syncing={syncingLocation}
       />
 
-      <div className={`max-w-7xl mx-auto ${isMobile ? 'p-4' : 'p-8'}`}>
+      <div className={`max-w-6xl mx-auto ${isMobile ? 'p-4' : 'p-4 lg:p-8'}`}>
         {/* Alert Banner for Sentiment Mismatches */}
         {needsReviewCount > 0 && (
           <Card className="mb-6 border-warning bg-warning/10">
@@ -582,7 +582,7 @@ const Dashboard = () => {
             </div>
           </Card>
         )}
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3 overflow-hidden">
+        <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 overflow-hidden">
           <Card className="p-4 sm:p-6">
             <div className="flex items-center gap-3 min-w-0">
               <div className="rounded-lg bg-success/10 p-2 sm:p-3 flex-shrink-0">
