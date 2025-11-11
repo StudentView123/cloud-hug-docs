@@ -204,11 +204,11 @@ const Dashboard = () => {
     }
   };
 
-  const handleGenerateReply = async (reviewId: string, reviewText: string, rating: number) => {
+  const handleGenerateReply = async (reviewId: string, reviewText: string, rating: number, authorName?: string) => {
     setGeneratingReply(reviewId);
     try {
       const { data, error } = await supabase.functions.invoke("generate-reply", {
-        body: { reviewId, reviewText, rating },
+        body: { reviewId, reviewText, rating, authorName },
         headers: {
           Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ''}`,
         },
@@ -384,7 +384,8 @@ const Dashboard = () => {
           body: { 
             reviewId: review.id, 
             reviewText: review.text || "", 
-            rating: review.rating 
+            rating: review.rating,
+            authorName: review.author_name
           },
           headers: {
             Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ''}`,
@@ -913,7 +914,7 @@ const Dashboard = () => {
                                      size="sm"
                                      variant="outline"
                                      onClick={async () => {
-                                       await handleGenerateReply(review.id, review.text || "", review.rating);
+                                       await handleGenerateReply(review.id, review.text || "", review.rating, review.author_name);
                                      }}
                                      disabled={generatingReply === review.id || isBulkMode}
                                      className="border-warning text-warning hover:bg-warning/10"
@@ -967,7 +968,7 @@ const Dashboard = () => {
                         <p className="text-sm text-muted-foreground mb-3">No reply generated yet</p>
                         <Button 
                           size="sm"
-                          onClick={() => handleGenerateReply(review.id, review.text || "", review.rating)}
+                          onClick={() => handleGenerateReply(review.id, review.text || "", review.rating, review.author_name)}
                           disabled={generatingReply === review.id || isBulkMode}
                         >
                           {generatingReply === review.id ? (

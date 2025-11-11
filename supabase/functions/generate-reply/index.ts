@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { reviewId, reviewText, rating } = await req.json();
+    const { reviewId, reviewText, rating, authorName } = await req.json();
     
     // Check if review text is empty or just whitespace/emojis
     const cleanedText = reviewText?.trim() || '';
@@ -157,6 +157,9 @@ serve(async (req) => {
         throw new Error('LOVABLE_API_KEY not configured');
       }
 
+      // Extract first name from author name
+      const firstName = authorName?.split(' ')[0] || '';
+
       const sentiment = rating >= 4 ? 'positive' : rating === 3 ? 'neutral' : 'negative';
       
       // Fetch user's style settings
@@ -184,6 +187,7 @@ Style Guidelines:
 - Formality: ${settings.formality || 'professional'}
 - Length: ${settings.length || 'concise'} (2-3 sentences)
 - Personality: ${settings.personality || 'friendly'}
+${firstName ? `- Address the reviewer by their first name (${firstName}) at the beginning of your response` : ''}
 
 ${settings.custom_instructions ? `Additional Instructions:\n${settings.custom_instructions}\n` : ''}
 
@@ -208,7 +212,7 @@ Do not use generic phrases. Make it specific to their review when possible.`;
           model: 'google/gemini-2.5-flash',
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Generate a response to this ${rating}-star review: "${reviewText}"` },
+            { role: 'user', content: `Generate a response to this ${rating}-star review${firstName ? ` from ${firstName}` : ''}: "${reviewText}"` },
           ],
         }),
       });
