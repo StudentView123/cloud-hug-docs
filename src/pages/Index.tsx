@@ -2,17 +2,14 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Star, LayoutDashboard, Zap } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-
 const Index = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-
-  return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-b from-secondary to-background">
+  return <div className="flex min-h-screen flex-col bg-gradient-to-b from-secondary to-background">
       {/* Navigation */}
       <header className="border-b border-border bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <h1 className="text-xl font-bold">ReviewHub</h1>
+          <h1 className="text-xl font-bold">Review Hub</h1>
           <Button onClick={() => navigate("/login")}>Get Started</Button>
         </div>
       </header>
@@ -77,23 +74,15 @@ const Index = () => {
       <footer className="border-t border-border/50 mt-20">
         <div className="container mx-auto px-4 py-6 text-center">
           <div className="flex justify-center gap-6">
-            <a 
-              href="/privacy" 
-              className="text-sm text-muted-foreground hover:text-primary transition-colors"
-            >
+            <a href="/privacy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
               Privacy Policy
             </a>
-            <a 
-              href="/terms" 
-              className="text-sm text-muted-foreground hover:text-primary transition-colors"
-            >
+            <a href="/terms" className="text-sm text-muted-foreground hover:text-primary transition-colors">
               Terms of Service
             </a>
           </div>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
