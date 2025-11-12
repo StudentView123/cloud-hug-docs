@@ -148,6 +148,55 @@ const Dashboard = () => {
     }
   };
 
+  const handleCheckForNewReviews = async () => {
+    setFetchingReviews(true);
+    try {
+      // Step 1: Check sync status to see what's missing
+      const status = await checkSyncStatus();
+      setSyncStatus(status);
+      
+      // Step 2: Check if there are missing reviews
+      const locationsNeedingSync = status.locations
+        .filter(loc => loc.status === 'incomplete')
+        .map(loc => loc.google_location_id);
+      
+      if (locationsNeedingSync.length === 0) {
+        toast({
+          title: "All caught up! 🎉",
+          description: "No new reviews found. All locations are synced.",
+        });
+        return;
+      }
+
+      // Step 3: Sync only the missing reviews
+      toast({
+        title: "New reviews found",
+        description: `Found ${status.summary.total_missing_reviews} missing reviews across ${locationsNeedingSync.length} locations. Syncing now...`,
+      });
+
+      const result = await syncMissingReviews(locationsNeedingSync);
+      
+      toast({
+        title: "Sync completed",
+        description: `Successfully synced ${result.newReviewsCount || 0} new reviews`,
+      });
+      
+      // Refresh data
+      const newStatus = await checkSyncStatus();
+      setSyncStatus(newStatus);
+      queryClient.invalidateQueries({ queryKey: ["reviews"] });
+      queryClient.invalidateQueries({ queryKey: ["review-counts-by-location"] });
+    } catch (error: any) {
+      toast({
+        title: "Error checking for new reviews",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setFetchingReviews(false);
+    }
+  };
+
   const handleFetchReviews = async () => {
     setFetchingReviews(true);
     try {
@@ -631,7 +680,7 @@ const Dashboard = () => {
             <p className="text-muted-foreground mb-4">
               No unanswered reviews. Replied reviews are automatically archived.
             </p>
-            <Button onClick={handleFetchReviews} disabled={fetchingReviews} variant="outline">
+            <Button onClick={handleCheckForNewReviews} disabled={fetchingReviews} variant="outline">
               <RefreshCw className={`h-4 w-4 mr-2 ${fetchingReviews ? 'animate-spin' : ''}`} />
               Check for New Reviews
             </Button>
