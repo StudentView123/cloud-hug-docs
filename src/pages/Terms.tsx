@@ -25,13 +25,13 @@ const Terms = () => {
 
           <h2 className="text-2xl font-semibold text-foreground mt-8 mb-4">1. Acceptance of Terms</h2>
           <p className="text-foreground/90 mb-6">
-            By accessing or using Review Reply Manager ("Service"), you agree to be bound by these Terms of Service
+            By accessing or using Review Hub ("Service"), you agree to be bound by these Terms of Service
             and our Privacy Policy. If you do not agree, do not use the Service.
           </p>
 
           <h2 className="text-2xl font-semibold text-foreground mt-8 mb-4">2. Description of Service</h2>
           <p className="text-foreground/90 mb-6">
-            Review Reply Manager enables verified Google Business Profile owners to manage and respond to reviews
+            Review Hub enables verified Google Business Profile owners to manage and respond to reviews
             using AI-assisted suggestions. You are responsible for ensuring that replies generated through the
             Service comply with Google's content and community guidelines.
           </p>
@@ -71,7 +71,7 @@ const Terms = () => {
 
           <h2 className="text-2xl font-semibold text-foreground mt-8 mb-4">7. Limitation of Liability</h2>
           <p className="text-foreground/90 mb-6">
-            To the fullest extent permitted by law, Review Reply Manager and its affiliates are not liable for any
+            To the fullest extent permitted by law, Review Hub and its affiliates are not liable for any
             indirect, incidental, or consequential damages arising from your use of the Service.
           </p>
 
@@ -79,10 +79,10 @@ const Terms = () => {
           <p className="text-foreground/90 mb-6">
             For support or legal inquiries, contact:{" "}
             <a 
-              href="mailto:support@reviewreplymanager.com"
+              href="mailto:support@reviewhub.com"
               className="text-primary hover:underline"
             >
-              support@reviewreplymanager.com
+              support@reviewhub.com
             </a>
           </p>
         </article>
