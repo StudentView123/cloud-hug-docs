@@ -24,7 +24,7 @@ const Privacy = () => {
           </p>
 
           <p className="text-foreground/90 mb-6">
-            Review Reply Manager ("we", "our", or "us") values your privacy. This policy explains how we collect,
+            Review Hub ("we", "our", or "us") values your privacy. This policy explains how we collect,
             use, and protect your information when you use our website and services.
           </p>
 
@@ -50,7 +50,7 @@ const Privacy = () => {
 
           <h2 className="text-2xl font-semibold text-foreground mt-8 mb-4">Third-Party Services</h2>
           <p className="text-foreground/90 mb-6">
-            Review Reply Manager integrates with Google APIs and Stripe. Your use of these services is governed by{" "}
+            Review Hub integrates with Google APIs and Stripe. Your use of these services is governed by{" "}
             <a 
               href="https://policies.google.com/privacy" 
               target="_blank" 
@@ -88,10 +88,10 @@ const Privacy = () => {
           <p className="text-foreground/90 mb-6">
             For any privacy-related concerns, contact us at:{" "}
             <a 
-              href="mailto:support@reviewreplymanager.com"
+              href="mailto:support@reviewhub.com"
               className="text-primary hover:underline"
             >
-              support@reviewreplymanager.com
+              support@reviewhub.com
             </a>
           </p>
         </article>

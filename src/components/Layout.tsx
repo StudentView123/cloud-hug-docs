@@ -24,7 +24,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
         {isMobile && (
           <header className="fixed top-0 left-0 right-0 z-50 bg-card border-b border-border">
             <div className="flex items-center justify-between px-4 h-14">
-              <h1 className="text-xl font-bold text-foreground">ReviewHub</h1>
+              <h1 className="text-xl font-bold text-foreground">Review Hub</h1>
               <Link to="/settings" className="p-2 -mr-2">
                 <Settings className="h-5 w-5 text-foreground" />
               </Link>
@@ -39,7 +39,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             <div className="flex-1 flex flex-col w-full">
               <header className="h-14 border-b border-border bg-card flex items-center px-4">
                 <SidebarTrigger />
-                <h1 className="text-xl font-bold text-foreground ml-4">ReviewHub</h1>
+                <h1 className="text-xl font-bold text-foreground ml-4">Review Hub</h1>
               </header>
               <main className="flex-1 w-full">
                 {children}
