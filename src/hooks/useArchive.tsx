@@ -20,7 +20,9 @@ export const useArchive = (searchTerm: string = "") => {
         query = query.or(`text.ilike.${searchQuery},author_name.ilike.${searchQuery}`);
       }
 
-      const { data, error } = await query.order("review_created_at", { ascending: false });
+      const { data, error } = await query
+        .order("review_created_at", { ascending: false })
+        .limit(5000);
 
       if (error) throw error;
       return data as Review[];
