@@ -8,9 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const AISettingsTab = () => {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [settings, setSettings] = useState({
     formality: "professional",
     length: "concise",
@@ -100,13 +102,13 @@ export const AISettingsTab = () => {
     <div className="space-y-6 mt-6">
       <div>
         <Label>Formality</Label>
-        <div className="flex gap-2 mt-2">
+        <div className={`flex gap-2 mt-2 ${isMobile ? 'flex-wrap' : ''}`}>
           {['casual', 'professional', 'formal'].map(option => (
             <Button
               key={option}
               variant={settings.formality === option ? 'default' : 'outline'}
               onClick={() => setSettings({ ...settings, formality: option })}
-              className="capitalize"
+              className={`capitalize ${isMobile ? 'flex-1 min-w-[100px]' : ''}`}
             >
               {option}
             </Button>
@@ -116,18 +118,19 @@ export const AISettingsTab = () => {
 
       <div>
         <Label>Length Preference</Label>
-        <div className="flex gap-2 mt-2">
+        <div className={`flex gap-2 mt-2 ${isMobile ? 'flex-col' : 'flex-wrap'}`}>
           {[
-            { value: 'brief', label: 'Brief (1-2 sentences)' },
-            { value: 'concise', label: 'Concise (2-3 sentences)' },
-            { value: 'detailed', label: 'Detailed (3-4 sentences)' }
+            { value: 'brief', label: 'Brief (1-2 sentences)', shortLabel: 'Brief' },
+            { value: 'concise', label: 'Concise (2-3 sentences)', shortLabel: 'Concise' },
+            { value: 'detailed', label: 'Detailed (3-4 sentences)', shortLabel: 'Detailed' }
           ].map(option => (
             <Button
               key={option.value}
               variant={settings.length === option.value ? 'default' : 'outline'}
               onClick={() => setSettings({ ...settings, length: option.value })}
+              className={isMobile ? 'w-full justify-center' : ''}
             >
-              {option.label}
+              {isMobile ? option.shortLabel : option.label}
             </Button>
           ))}
         </div>
@@ -135,13 +138,13 @@ export const AISettingsTab = () => {
 
       <div>
         <Label>Personality</Label>
-        <div className="flex gap-2 mt-2">
+        <div className={`flex gap-2 mt-2 ${isMobile ? 'flex-wrap' : ''}`}>
           {['friendly', 'warm', 'reserved'].map(option => (
             <Button
               key={option}
               variant={settings.personality === option ? 'default' : 'outline'}
               onClick={() => setSettings({ ...settings, personality: option })}
-              className="capitalize"
+              className={`capitalize ${isMobile ? 'flex-1 min-w-[100px]' : ''}`}
             >
               {option}
             </Button>
@@ -153,11 +156,11 @@ export const AISettingsTab = () => {
         <Label htmlFor="custom-instructions">Custom Instructions (Optional)</Label>
         <Textarea
           id="custom-instructions"
-          placeholder="e.g., 'Always mention our 30-day guarantee' or 'Use first-person plural (we/our)'"
+          placeholder="e.g., 'Write like a real person, not a corporate bot. Use simple, everyday language. Avoid overly or overly intellectual words. Be casual and genuine.'"
           value={settings.custom_instructions}
           onChange={(e) => setSettings({ ...settings, custom_instructions: e.target.value })}
           className="mt-2"
-          rows={3}
+          rows={4}
         />
         <p className="text-xs text-muted-foreground mt-1">
           These instructions will be added to every AI-generated reply
@@ -166,14 +169,15 @@ export const AISettingsTab = () => {
 
       <div>
         <Label>Avoid These Phrases</Label>
-        <div className="flex gap-2 mt-2">
+        <div className={`flex gap-2 mt-2 ${isMobile ? 'flex-col' : ''}`}>
           <Input
             placeholder='e.g., "Thank you so much for your kind words"'
             value={newPhrase}
             onChange={(e) => setNewPhrase(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddPhrase()}
+            className={isMobile ? 'w-full' : ''}
           />
-          <Button size="sm" onClick={handleAddPhrase}>Add</Button>
+          <Button size="sm" onClick={handleAddPhrase} className={isMobile ? 'w-full' : ''}>Add</Button>
         </div>
         
         <div className="flex flex-wrap gap-2 mt-3">
