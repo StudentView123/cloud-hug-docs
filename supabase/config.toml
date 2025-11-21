@@ -26,3 +26,6 @@ verify_jwt = true
 
 [functions.check-credits]
 verify_jwt = true
+
+[functions.redeem-promo-code]
+verify_jwt = true

@@ -42,7 +42,53 @@ export const BuyCreditsDialog = ({
   onOpenChange: (open: boolean) => void;
 }) => {
   const [purchasing, setPurchasing] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState("");
+  const [redeeming, setRedeeming] = useState(false);
   const { toast } = useToast();
+
+  const handleRedeemPromo = async () => {
+    if (!promoCode.trim()) {
+      toast({
+        title: "Enter a promo code",
+        description: "Please enter a promo code to redeem",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setRedeeming(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Please log in to redeem promo codes');
+      }
+
+      const { data, error } = await supabase.functions.invoke("redeem-promo-code", {
+        body: { code: promoCode },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "🎉 Promo code redeemed!",
+        description: `${data.creditsAwarded} credits added. New balance: ${data.newBalance}`,
+      });
+      
+      setPromoCode("");
+      onOpenChange(false);
+      window.location.reload(); // Refresh to show new balance
+    } catch (error: any) {
+      console.error('Error redeeming promo code:', error);
+      toast({
+        title: "Redemption failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setRedeeming(false);
+    }
+  };
 
   const handlePurchase = async (priceId: string, packageName: string) => {
     setPurchasing(priceId);
@@ -81,6 +127,33 @@ export const BuyCreditsDialog = ({
         <DialogHeader>
           <DialogTitle>Buy Credits</DialogTitle>
         </DialogHeader>
+        
+        {/* Promo Code Section */}
+        <div className="space-y-3 pb-4 border-b">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Coins className="h-4 w-4" />
+            <span>Have a promo code?</span>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Enter promo code"
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+              className="flex-1 px-3 py-2 border border-input rounded-md bg-background text-sm"
+              disabled={redeeming}
+            />
+            <Button
+              onClick={handleRedeemPromo}
+              disabled={redeeming || !promoCode.trim()}
+              variant="secondary"
+            >
+              {redeeming ? "Redeeming..." : "Redeem"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Credit Packages */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
           {PACKAGES.map((pkg) => (
             <Card
