@@ -9,9 +9,9 @@ const corsHeaders = {
 
 // Map price IDs to credit amounts
 const CREDIT_PACKAGES = {
-  'price_1SVznfGKOTYzY5WxMSHtXjup': { credits: 10, name: 'Starter' },
-  'price_1SVzoFGKOTYzY5WxtWx5MUfC': { credits: 50, name: 'Growth' },
-  'price_1SVzoQGKOTYzY5Wxmx4FSXVi': { credits: 100, name: 'Pro' }
+  'price_1SW07eGKOTYzY5Wxx0hYa4xr': { credits: 5, name: 'Starter' },
+  'price_1SW07wGKOTYzY5WxSAeptol8': { credits: 15, name: 'Growth' },
+  'price_1SW08BGKOTYzY5WxYSGbGe1h': { credits: 30, name: 'Pro' }
 };
 
 serve(async (req) => {
