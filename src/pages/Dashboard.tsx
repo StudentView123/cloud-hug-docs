@@ -322,6 +322,9 @@ const Dashboard = () => {
         description: "AI has generated a reply for this review",
       });
       queryClient.invalidateQueries({ queryKey: ["reviews"] });
+      
+      // Refresh credit balance after generating reply
+      creditBalanceRef.current?.fetchCredits();
     } catch (error: any) {
       // Handle session expiration
       if (error.message?.includes('Not authenticated') || error.status === 401) {
