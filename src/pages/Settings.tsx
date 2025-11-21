@@ -585,11 +585,15 @@ const Settings = () => {
           <Card className="p-6">
             <h3 className="mb-4 font-medium text-lg">AI Reply Management</h3>
             <Tabs defaultValue="ai-settings">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="ai-settings">AI Settings</TabsTrigger>
-                <TabsTrigger value="quick-replies">Quick Replies</TabsTrigger>
-                <TabsTrigger value="training">Training</TabsTrigger>
-                <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              <TabsList className={`${isMobile ? 'grid grid-cols-2 w-full h-auto' : 'grid w-full grid-cols-4'}`}>
+                <TabsTrigger value="ai-settings" className={isMobile ? 'text-xs py-2' : ''}>
+                  {isMobile ? 'AI' : 'AI Settings'}
+                </TabsTrigger>
+                <TabsTrigger value="quick-replies" className={isMobile ? 'text-xs py-2' : ''}>
+                  {isMobile ? 'Quick Replies' : 'Quick Replies'}
+                </TabsTrigger>
+                <TabsTrigger value="training" className={isMobile ? 'text-xs py-2' : ''}>Training</TabsTrigger>
+                <TabsTrigger value="analytics" className={isMobile ? 'text-xs py-2' : ''}>Analytics</TabsTrigger>
               </TabsList>
               
               <TabsContent value="ai-settings">
