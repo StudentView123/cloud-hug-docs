@@ -36,10 +36,12 @@ const PACKAGES = [
 
 export const BuyCreditsDialog = ({ 
   open, 
-  onOpenChange 
+  onOpenChange,
+  onCreditsUpdated 
 }: { 
   open: boolean; 
   onOpenChange: (open: boolean) => void;
+  onCreditsUpdated?: () => void;
 }) => {
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState("");
@@ -76,8 +78,8 @@ export const BuyCreditsDialog = ({
       });
       
       setPromoCode("");
+      onCreditsUpdated?.(); // Trigger credit refresh
       onOpenChange(false);
-      window.location.reload(); // Refresh to show new balance
     } catch (error: any) {
       console.error('Error redeeming promo code:', error);
       toast({
