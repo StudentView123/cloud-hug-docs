@@ -1,11 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Coins, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-export const CreditBalance = ({ onBuyCredits }: { onBuyCredits: () => void }) => {
+export interface CreditBalanceRef {
+  fetchCredits: () => Promise<void>;
+}
+
+export const CreditBalance = forwardRef<CreditBalanceRef, { onBuyCredits: () => void }>(({ onBuyCredits }, ref) => {
   const [credits, setCredits] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -42,6 +46,10 @@ export const CreditBalance = ({ onBuyCredits }: { onBuyCredits: () => void }) =>
     fetchCredits();
   }, []);
 
+  useImperativeHandle(ref, () => ({
+    fetchCredits,
+  }));
+
   const getVariant = () => {
     if (credits === null || credits === 0) return "destructive";
     if (credits < 5) return "secondary";
@@ -67,4 +75,4 @@ export const CreditBalance = ({ onBuyCredits }: { onBuyCredits: () => void }) =>
       </Button>
     </div>
   );
-};
+});

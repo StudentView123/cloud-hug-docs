@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Star, ThumbsUp, AlertCircle, RefreshCw, Send, Edit2, Check, ArrowUpDown, CheckSquare, X, BarChart3, AlertTriangle } from "lucide-react";
 import { useReviews, useFetchReviews } from "@/hooks/useReviews";
 import { useLocations } from "@/hooks/useLocations";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -17,7 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { useCheckSyncStatus, useSyncMissingReviews, SyncStatusResponse } from "@/hooks/useSyncStatus";
 import { SyncStatusDialog } from "@/components/SyncStatusDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { CreditBalance } from "@/components/CreditBalance";
+import { CreditBalance, CreditBalanceRef } from "@/components/CreditBalance";
 import { BuyCreditsDialog } from "@/components/BuyCreditsDialog";
 
 const Dashboard = () => {
@@ -30,6 +30,7 @@ const Dashboard = () => {
   const [fetchingReviews, setFetchingReviews] = useState(false);
   const [generatingReply, setGeneratingReply] = useState<string | null>(null);
   const isMobile = useIsMobile();
+  const creditBalanceRef = useRef<CreditBalanceRef>(null);
   
   const [postingReply, setPostingReply] = useState<string | null>(null);
   const [editingReply, setEditingReply] = useState<string | null>(null);
@@ -611,7 +612,7 @@ const Dashboard = () => {
           )}
         </div>
         <div className={`flex ${isMobile ? 'flex-col w-full' : 'items-center'} gap-2`}>
-          <CreditBalance onBuyCredits={() => setShowBuyCreditsDialog(true)} />
+          <CreditBalance ref={creditBalanceRef} onBuyCredits={() => setShowBuyCreditsDialog(true)} />
           <Button 
             variant="outline" 
             size="sm"
@@ -650,6 +651,7 @@ const Dashboard = () => {
       <BuyCreditsDialog
         open={showBuyCreditsDialog}
         onOpenChange={setShowBuyCreditsDialog}
+        onCreditsUpdated={() => creditBalanceRef.current?.fetchCredits()}
       />
 
       <SyncStatusDialog
