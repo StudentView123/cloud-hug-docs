@@ -77,14 +77,14 @@ const Index = () => {
       <footer className="border-t border-border/50 mt-20">
         <div className="container mx-auto px-4 py-6 text-center">
           <div className="flex justify-center gap-6">
-            <a href="/pricing" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-              Pricing
-            </a>
             <a href="/privacy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
               Privacy Policy
             </a>
             <a href="/terms" className="text-sm text-muted-foreground hover:text-primary transition-colors">
               Terms of Service
+            </a>
+            <a href="/pricing" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+              Pricing
             </a>
           </div>
         </div>
