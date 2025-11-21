@@ -22,13 +22,29 @@ export const CreditBalance = forwardRef<CreditBalanceRef, { onBuyCredits: () => 
         throw new Error('Not authenticated');
       }
 
+      // Try edge function first
       const { data, error } = await supabase.functions.invoke("check-credits", {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Edge function error, trying direct query:', error);
+        // Fallback to direct database query
+        const { data: profile, error: dbError } = await supabase
+          .from('profiles')
+          .select('credits')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        
+        if (dbError) throw dbError;
+        console.log('Direct query result:', profile);
+        setCredits(profile?.credits || 0);
+        return;
+      }
+      
+      console.log('check-credits response:', data);
       setCredits(data.credits);
     } catch (error: any) {
       console.error('Error fetching credits:', error);
