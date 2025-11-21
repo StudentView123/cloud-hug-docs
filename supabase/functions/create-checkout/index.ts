@@ -17,9 +17,9 @@ serve(async (req) => {
     
     // Validate priceId is one of our packages
     const validPriceIds = [
-      'price_1SVznfGKOTYzY5WxMSHtXjup', // Starter
-      'price_1SVzoFGKOTYzY5WxtWx5MUfC', // Growth
-      'price_1SVzoQGKOTYzY5Wxmx4FSXVi'  // Pro
+      'price_1SW07eGKOTYzY5Wxx0hYa4xr', // Starter
+      'price_1SW07wGKOTYzY5WxSAeptol8', // Growth
+      'price_1SW08BGKOTYzY5WxYSGbGe1h'  // Pro
     ];
     
     if (!validPriceIds.includes(priceId)) {
