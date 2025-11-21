@@ -17,8 +17,8 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "robots.txt", "pwa-192x192.png", "pwa-512x512.png"],
       manifest: {
-        name: "ReviewHub - Google Business Review Management",
-        short_name: "ReviewHub",
+        name: "Review Hub - Google Business Review Management",
+        short_name: "Review Hub",
         description: "Centralize and manage Google Business reviews with AI-powered replies",
         theme_color: "#2C4BFF",
         background_color: "#FFFFFF",
@@ -41,8 +41,14 @@ export default defineConfig(({ mode }) => ({
           }
         ]
       },
+      devOptions: {
+        enabled: true,
+        type: "module"
+      },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/api/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
