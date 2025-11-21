@@ -13,6 +13,7 @@ import ActivityLog from "./pages/ActivityLog";
 import ReviewAudit from "./pages/ReviewAudit";
 import Settings from "./pages/Settings";
 import Install from "./pages/Install";
+import Pricing from "./pages/Pricing";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import NotFound from "./pages/NotFound";
@@ -36,6 +37,7 @@ const App = () => (
           <Route path="/review-audit" element={<ReviewAudit />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/install" element={<Install />} />
+          <Route path="/pricing" element={<Pricing />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
