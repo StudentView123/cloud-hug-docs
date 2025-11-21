@@ -12,33 +12,31 @@ const Pricing = () => {
   const packages = [
     {
       name: "Starter",
-      credits: 10,
-      price: 3.99,
-      priceId: "price_1SW08BGKOTYzY5WxEW2ckSkU",
-      perCredit: 0.40,
+      credits: 5,
+      price: 2.50,
+      priceId: "price_1SW07eGKOTYzY5Wxx0hYa4xr",
+      perCredit: 0.50,
       icon: Zap,
       color: "text-blue-500",
       bgColor: "bg-blue-500/10",
     },
     {
-      name: "Professional",
-      credits: 30,
-      price: 10.50,
-      priceId: "price_1SW08BGKOTYzY5WxYSGbGe1h",
-      perCredit: 0.35,
-      discount: "30% off",
+      name: "Growth",
+      credits: 15,
+      price: 6.00,
+      priceId: "price_1SW07wGKOTYzY5WxSAeptol8",
+      perCredit: 0.40,
       popular: true,
       icon: Sparkles,
       color: "text-primary",
       bgColor: "bg-primary/10",
     },
     {
-      name: "Business",
-      credits: 100,
-      price: 29.99,
-      priceId: "price_1SW08BGKOTYzY5WxpPrjPFqF",
-      perCredit: 0.30,
-      discount: "40% off",
+      name: "Pro",
+      credits: 30,
+      price: 10.50,
+      priceId: "price_1SW08BGKOTYzY5WxYSGbGe1h",
+      perCredit: 0.35,
       icon: TrendingUp,
       color: "text-purple-500",
       bgColor: "bg-purple-500/10",
@@ -110,11 +108,6 @@ const Pricing = () => {
                     <h3 className="text-2xl font-bold mb-2">{pkg.name}</h3>
                     <div className="mb-4">
                       <span className="text-4xl font-bold">${pkg.price}</span>
-                      {pkg.discount && (
-                        <Badge variant="secondary" className="ml-2">
-                          {pkg.discount}
-                        </Badge>
-                      )}
                     </div>
                     <p className="text-muted-foreground">
                       {pkg.credits} credits
@@ -212,14 +205,14 @@ const Pricing = () => {
       <footer className="border-t border-border/50 mt-20">
         <div className="container mx-auto px-4 py-6 text-center">
           <div className="flex justify-center gap-6">
-            <a href="/pricing" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-              Pricing
-            </a>
             <a href="/privacy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
               Privacy Policy
             </a>
             <a href="/terms" className="text-sm text-muted-foreground hover:text-primary transition-colors">
               Terms of Service
+            </a>
+            <a href="/pricing" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+              Pricing
             </a>
           </div>
         </div>
