@@ -56,6 +56,50 @@ export type Database = {
           },
         ]
       }
+      credit_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          review_id: string | null
+          stripe_checkout_session_id: string | null
+          stripe_payment_intent_id: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          review_id?: string | null
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          review_id?: string | null
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_transactions_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       locations: {
         Row: {
           address: string | null
@@ -103,6 +147,7 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          credits: number
           email: string | null
           google_access_token: string | null
           google_refresh_token: string | null
@@ -113,6 +158,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          credits?: number
           email?: string | null
           google_access_token?: string | null
           google_refresh_token?: string | null
@@ -123,6 +169,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          credits?: number
           email?: string | null
           google_access_token?: string | null
           google_refresh_token?: string | null
