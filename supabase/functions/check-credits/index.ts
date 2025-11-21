@@ -23,11 +23,15 @@ serve(async (req) => {
     const user = data.user;
     if (!user) throw new Error("User not authenticated");
 
+    console.log('Checking credits for user:', user.id, user.email);
+
     const { data: profile } = await supabaseClient
       .from('profiles')
       .select('credits')
       .eq('id', user.id)
       .maybeSingle();
+
+    console.log('Profile query result:', profile);
 
     return new Response(JSON.stringify({ 
       credits: profile?.credits || 0 
