@@ -14,9 +14,6 @@ serve(async (req) => {
   try {
     const { reviewId, reviewText, rating, authorName } = await req.json();
     
-    // Check if review text is empty or just whitespace/emojis
-    const cleanedText = reviewText?.trim() || '';
-    const hasSubstantiveText = cleanedText.length > 5;
     
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -52,6 +49,27 @@ serve(async (req) => {
         JSON.stringify({ error: 'Not authenticated' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Check for substantive text to determine if AI generation is needed
+    const cleanedText = reviewText?.trim() || '';
+    const hasSubstantiveText = cleanedText.length > 5;
+    
+    // Only check and deduct credits for AI-generated replies
+    if (hasSubstantiveText) {
+      // Check user's credit balance
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('credits')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile || profile.credits < 1) {
+        return new Response(
+          JSON.stringify({ error: 'Insufficient credits. Please purchase more credits to continue.' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Helper function for default responses on star-only reviews
@@ -229,6 +247,29 @@ Do not use generic phrases. Make it specific to their review when possible.`;
 
       const aiData = await response.json();
       generatedReply = aiData.choices[0].message.content;
+
+      // Deduct 1 credit after successful AI generation
+      const { data: currentProfile } = await supabase
+        .from('profiles')
+        .select('credits')
+        .eq('id', user.id)
+        .single();
+
+      await supabase
+        .from('profiles')
+        .update({ credits: (currentProfile.credits || 1) - 1 })
+        .eq('id', user.id);
+
+      // Log credit usage
+      await supabase
+        .from('credit_transactions')
+        .insert({
+          user_id: user.id,
+          amount: -1,
+          transaction_type: 'usage',
+          review_id: reviewId,
+          notes: `AI reply generated for ${rating}-star review`
+        });
     }
 
     // Delete any existing draft replies for this review (to handle regeneration)

@@ -17,6 +17,8 @@ import { useNavigate } from "react-router-dom";
 import { useCheckSyncStatus, useSyncMissingReviews, SyncStatusResponse } from "@/hooks/useSyncStatus";
 import { SyncStatusDialog } from "@/components/SyncStatusDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { CreditBalance } from "@/components/CreditBalance";
+import { BuyCreditsDialog } from "@/components/BuyCreditsDialog";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -48,6 +50,7 @@ const Dashboard = () => {
   const [showSyncDialog, setShowSyncDialog] = useState(false);
   const [checkingSyncStatus, setCheckingSyncStatus] = useState(false);
   const [syncingLocation, setSyncingLocation] = useState(false);
+  const [showBuyCreditsDialog, setShowBuyCreditsDialog] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -58,6 +61,15 @@ const Dashboard = () => {
       }
     };
     init();
+    
+    // Check for payment success on mount
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session_id');
+    const paymentStatus = params.get('payment');
+    
+    if (paymentStatus === 'success' && sessionId) {
+      handleVerifyPayment(sessionId);
+    }
   }, [navigate, toast]);
 
   const handleCheckSyncStatus = async () => {
@@ -79,6 +91,38 @@ const Dashboard = () => {
       });
     } finally {
       setCheckingSyncStatus(false);
+    }
+  };
+
+  const handleVerifyPayment = async (sessionId: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data, error } = await supabase.functions.invoke("verify-payment", {
+        body: { sessionId },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+      
+      if (!data.alreadyProcessed) {
+        toast({
+          title: "Credits added!",
+          description: `${data.creditsAdded} credits added to your account. New balance: ${data.newBalance}`,
+        });
+      }
+      
+      // Clean up URL
+      window.history.replaceState({}, '', '/');
+    } catch (error: any) {
+      toast({
+        title: "Error verifying payment",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -567,6 +611,7 @@ const Dashboard = () => {
           )}
         </div>
         <div className={`flex ${isMobile ? 'flex-col w-full' : 'items-center'} gap-2`}>
+          <CreditBalance onBuyCredits={() => setShowBuyCreditsDialog(true)} />
           <Button 
             variant="outline" 
             size="sm"
@@ -601,6 +646,11 @@ const Dashboard = () => {
           </Button>
         </div>
       </div>
+
+      <BuyCreditsDialog
+        open={showBuyCreditsDialog}
+        onOpenChange={setShowBuyCreditsDialog}
+      />
 
       <SyncStatusDialog
         open={showSyncDialog}

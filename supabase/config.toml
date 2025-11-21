@@ -17,3 +17,12 @@ verify_jwt = true
 
 [functions.post-reply]
 verify_jwt = true
+
+[functions.create-checkout]
+verify_jwt = true
+
+[functions.verify-payment]
+verify_jwt = true
+
+[functions.check-credits]
+verify_jwt = true
