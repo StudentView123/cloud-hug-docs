@@ -114,10 +114,13 @@ const Dashboard = () => {
           title: "Credits added!",
           description: `${data.creditsAdded} credits added to your account. New balance: ${data.newBalance}`,
         });
+        
+        // Refresh credit balance display
+        creditBalanceRef.current?.fetchCredits();
       }
       
       // Clean up URL
-      window.history.replaceState({}, '', '/');
+      window.history.replaceState({}, '', '/dashboard');
     } catch (error: any) {
       toast({
         title: "Error verifying payment",
