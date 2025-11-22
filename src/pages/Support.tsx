@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSubmitFeedback, useFeedbackHistory } from "@/hooks/useFeedback";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
+import { Layout } from "@/components/Layout";
 
 const feedbackSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
@@ -80,7 +81,8 @@ export default function Support() {
   const subjectLength = form.watch("subject")?.length || 0;
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <Layout>
+      <div className="container mx-auto p-6 max-w-4xl">
       <div className="flex items-center gap-3 mb-6">
         <Headphones className="h-8 w-8 text-primary" />
         <div>
@@ -203,6 +205,7 @@ export default function Support() {
           </CardContent>
         </Card>
       )}
-    </div>
+      </div>
+    </Layout>
   );
 }
