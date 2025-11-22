@@ -100,6 +100,36 @@ export type Database = {
           },
         ]
       }
+      feedback_submissions: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          message: string
+          name: string
+          subject: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          message: string
+          name: string
+          subject: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string
+          name?: string
+          subject?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       locations: {
         Row: {
           address: string | null
