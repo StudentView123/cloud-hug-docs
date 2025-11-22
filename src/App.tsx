@@ -12,6 +12,7 @@ import Archive from "./pages/Archive";
 import ActivityLog from "./pages/ActivityLog";
 import ReviewAudit from "./pages/ReviewAudit";
 import Settings from "./pages/Settings";
+import Support from "./pages/Support";
 import Install from "./pages/Install";
 import Pricing from "./pages/Pricing";
 import Privacy from "./pages/Privacy";
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/archive" element={<Archive />} />
           <Route path="/activity-log" element={<ActivityLog />} />
           <Route path="/review-audit" element={<ReviewAudit />} />
+          <Route path="/support" element={<Support />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/install" element={<Install />} />
           <Route path="/pricing" element={<Pricing />} />
