@@ -70,6 +70,23 @@ const Index = () => {
               </p>
             </div>
           </div>
+
+          {/* Demo Video Section */}
+          <div className="mx-auto mt-24 max-w-4xl">
+            <h2 className="mb-8 text-center text-2xl font-bold">See it in action</h2>
+            <div className="overflow-hidden rounded-xl border border-border shadow-lg">
+              <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                <iframe
+                  src="https://player.vimeo.com/video/1131961741"
+                  className="absolute inset-0 h-full w-full"
+                  frameBorder="0"
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                  title="Review Hub Demo"
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </main>
 
