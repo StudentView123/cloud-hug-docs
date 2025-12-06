@@ -29,3 +29,9 @@ verify_jwt = true
 
 [functions.redeem-promo-code]
 verify_jwt = true
+
+[functions.submit-feedback]
+verify_jwt = false
+
+[functions.receive-email]
+verify_jwt = false

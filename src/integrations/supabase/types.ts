@@ -368,6 +368,45 @@ export type Database = {
           },
         ]
       }
+      received_emails: {
+        Row: {
+          attachments: Json | null
+          body_html: string | null
+          body_text: string | null
+          created_at: string | null
+          email_id: string
+          from_address: string
+          id: string
+          is_read: boolean | null
+          subject: string | null
+          to_address: string
+        }
+        Insert: {
+          attachments?: Json | null
+          body_html?: string | null
+          body_text?: string | null
+          created_at?: string | null
+          email_id: string
+          from_address: string
+          id?: string
+          is_read?: boolean | null
+          subject?: string | null
+          to_address: string
+        }
+        Update: {
+          attachments?: Json | null
+          body_html?: string | null
+          body_text?: string | null
+          created_at?: string | null
+          email_id?: string
+          from_address?: string
+          id?: string
+          is_read?: boolean | null
+          subject?: string | null
+          to_address?: string
+        }
+        Relationships: []
+      }
       replies: {
         Row: {
           content: string
