@@ -32,10 +32,10 @@ const invokeInternalFunction = async (name: string, auth: UserClient, body?: unk
   return { ok: true, status: response.status, data };
 };
 
-const createApiKeyValue = () => {
-  const bytes = crypto.getRandomValues(new Uint8Array(24));
+const createSecretValue = (prefix: string, bytesLength = 24) => {
+  const bytes = crypto.getRandomValues(new Uint8Array(bytesLength));
   const secret = btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-  return `rh_live_${secret}`;
+  return `${prefix}_${secret}`;
 };
 
 const hashValue = async (value: string) => {
@@ -60,6 +60,62 @@ const normalizeApiKey = (row: {
   createdAt: row.created_at,
   lastUsedAt: row.last_used_at,
   revokedAt: row.revoked_at,
+});
+
+const allowedWebhookEvents = ["review.created", "reply.status_changed"] as const;
+type AllowedWebhookEvent = (typeof allowedWebhookEvents)[number];
+
+const normalizeWebhookEvents = (events: unknown): AllowedWebhookEvent[] => {
+  if (!Array.isArray(events)) return [...allowedWebhookEvents];
+  const filtered = events.filter((event): event is AllowedWebhookEvent =>
+    typeof event === "string" && allowedWebhookEvents.includes(event as AllowedWebhookEvent)
+  );
+  return filtered.length > 0 ? Array.from(new Set(filtered)) : [...allowedWebhookEvents];
+};
+
+const normalizeWebhookEndpoint = (row: {
+  id: string;
+  label: string;
+  target_url: string;
+  subscribed_events: string[];
+  is_active: boolean;
+  created_at: string;
+  last_delivery_at: string | null;
+  last_success_at: string | null;
+  last_failure_at: string | null;
+  last_failure_reason: string | null;
+  signing_secret_hint: string;
+}) => ({
+  id: row.id,
+  label: row.label,
+  targetUrl: row.target_url,
+  subscribedEvents: row.subscribed_events,
+  isActive: row.is_active,
+  createdAt: row.created_at,
+  lastDeliveryAt: row.last_delivery_at,
+  lastSuccessAt: row.last_success_at,
+  lastFailureAt: row.last_failure_at,
+  lastFailureReason: row.last_failure_reason,
+  signingSecretHint: row.signing_secret_hint,
+});
+
+const normalizeWebhookDelivery = (row: {
+  id: string;
+  event_type: string;
+  response_status: number | null;
+  delivered_at: string | null;
+  failed_at: string | null;
+  created_at: string;
+  endpoint?: { label?: string | null; target_url?: string | null } | null;
+}) => ({
+  id: row.id,
+  eventType: row.event_type,
+  responseStatus: row.response_status,
+  deliveredAt: row.delivered_at,
+  failedAt: row.failed_at,
+  createdAt: row.created_at,
+  endpointLabel: row.endpoint?.label ?? null,
+  endpointUrl: row.endpoint?.target_url ?? null,
 });
 
 serve(async (req) => {
@@ -131,7 +187,7 @@ serve(async (req) => {
         return json({ error: "Label is required" }, 400);
       }
 
-      const apiKey = createApiKeyValue();
+      const apiKey = createSecretValue("rh_live");
       const keyHash = await hashValue(apiKey);
       const keyPrefix = apiKey.slice(0, 14);
 
@@ -160,6 +216,132 @@ serve(async (req) => {
       if (!data) return json({ error: "API key not found" }, 404);
 
       return json({ key: normalizeApiKey(data) });
+    }
+
+    if (req.method === "GET" && route === "/webhooks/deliveries") {
+      if (auth.authMode !== "user_token") {
+        return json({ error: "Webhook management requires a signed-in session" }, 403);
+      }
+
+      const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || 20), 1), 50);
+      const { data, error } = await supabase
+        .from("webhook_deliveries")
+        .select("id, event_type, response_status, delivered_at, failed_at, created_at, endpoint:webhook_endpoints(label, target_url)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+      return json({ data: (data ?? []).map(normalizeWebhookDelivery) });
+    }
+
+    if (req.method === "GET" && route === "/webhooks") {
+      if (auth.authMode !== "user_token") {
+        return json({ error: "Webhook management requires a signed-in session" }, 403);
+      }
+
+      const { data, error } = await supabase
+        .from("webhook_endpoints")
+        .select("id, label, target_url, subscribed_events, is_active, created_at, last_delivery_at, last_success_at, last_failure_at, last_failure_reason, signing_secret_hint")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return json({ data: (data ?? []).map(normalizeWebhookEndpoint) });
+    }
+
+    if (req.method === "POST" && route === "/webhooks") {
+      if (auth.authMode !== "user_token") {
+        return json({ error: "Webhook management requires a signed-in session" }, 403);
+      }
+
+      const body = await req.json().catch(() => ({}));
+      const label = typeof body.label === "string" ? body.label.trim() : "";
+      const targetUrl = typeof body.targetUrl === "string" ? body.targetUrl.trim() : "";
+      const subscribedEvents = normalizeWebhookEvents(body.subscribedEvents);
+
+      if (!label || !targetUrl) {
+        return json({ error: "Label and target URL are required" }, 400);
+      }
+
+      try {
+        const parsedUrl = new URL(targetUrl);
+        if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+          return json({ error: "Webhook URL must start with http or https" }, 400);
+        }
+      } catch {
+        return json({ error: "Webhook URL is invalid" }, 400);
+      }
+
+      const signingSecret = createSecretValue("whsec", 32);
+      const signingSecretHash = await hashValue(signingSecret);
+      const signingSecretHint = `${signingSecret.slice(0, 10)}••••••`;
+
+      const { data, error } = await supabase
+        .from("webhook_endpoints")
+        .insert({
+          user_id: user.id,
+          label,
+          target_url: targetUrl,
+          signing_secret: signingSecret,
+          signing_secret_hash: signingSecretHash,
+          signing_secret_hint: signingSecretHint,
+          subscribed_events: subscribedEvents,
+        })
+        .select("id, label, target_url, subscribed_events, is_active, created_at, last_delivery_at, last_success_at, last_failure_at, last_failure_reason, signing_secret_hint")
+        .single();
+
+      if (error) throw error;
+      return json({ endpoint: normalizeWebhookEndpoint(data), signingSecret }, 201);
+    }
+
+    if (req.method === "PATCH" && segments[0] === "webhooks" && segments[1]) {
+      if (auth.authMode !== "user_token") {
+        return json({ error: "Webhook management requires a signed-in session" }, 403);
+      }
+
+      const body = await req.json().catch(() => ({}));
+      const updates: Record<string, unknown> = {};
+
+      if (typeof body.label === "string" && body.label.trim()) updates.label = body.label.trim();
+      if (typeof body.targetUrl === "string" && body.targetUrl.trim()) {
+        try {
+          const parsedUrl = new URL(body.targetUrl.trim());
+          if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+            return json({ error: "Webhook URL must start with http or https" }, 400);
+          }
+        } catch {
+          return json({ error: "Webhook URL is invalid" }, 400);
+        }
+        updates.target_url = body.targetUrl.trim();
+      }
+      if (Array.isArray(body.subscribedEvents)) updates.subscribed_events = normalizeWebhookEvents(body.subscribedEvents);
+      if (typeof body.isActive === "boolean") updates.is_active = body.isActive;
+
+      if (Object.keys(updates).length === 0) {
+        return json({ error: "No valid webhook updates provided" }, 400);
+      }
+
+      const { data, error } = await supabase
+        .from("webhook_endpoints")
+        .update(updates)
+        .eq("id", segments[1])
+        .eq("user_id", user.id)
+        .select("id, label, target_url, subscribed_events, is_active, created_at, last_delivery_at, last_success_at, last_failure_at, last_failure_reason, signing_secret_hint")
+        .single();
+
+      if (error) throw error;
+      return json({ endpoint: normalizeWebhookEndpoint(data) });
+    }
+
+    if (req.method === "DELETE" && segments[0] === "webhooks" && segments[1]) {
+      if (auth.authMode !== "user_token") {
+        return json({ error: "Webhook management requires a signed-in session" }, 403);
+      }
+
+      const { error } = await supabase.from("webhook_endpoints").delete().eq("id", segments[1]).eq("user_id", user.id);
+      if (error) throw error;
+      return json({ success: true });
     }
 
     const locationIds = await getUserLocationIds(supabase, user.id);

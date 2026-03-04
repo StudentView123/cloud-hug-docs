@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, createUserClient, getOwnedReview } from "../_shared/google-connection.ts";
+import { emitWebhookEvent } from "../_shared/webhooks.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -241,6 +242,25 @@ Do not use generic phrases. Make it specific to their review when possible.`;
         rating: resolvedRating,
         sentiment: resolvedRating >= 4 ? "positive" : resolvedRating === 3 ? "neutral" : "negative",
         usedDefaultResponse: !hasSubstantiveText,
+      },
+    });
+
+    await emitWebhookEvent({
+      supabase,
+      userId: user.id,
+      eventType: "reply.status_changed",
+      resourceType: "reply",
+      resourceId: reply.id,
+      payload: {
+        reviewId,
+        replyId: reply.id,
+        previousStatus: null,
+        currentStatus: "draft",
+        content: reply.content,
+        isAiGenerated: reply.is_ai_generated,
+        needsReview: reply.needs_review,
+        createdAt: reply.created_at,
+        source: "generate-reply",
       },
     });
 

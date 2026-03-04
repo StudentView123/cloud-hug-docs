@@ -676,6 +676,119 @@ export type Database = {
           },
         ]
       }
+      webhook_deliveries: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          delivered_at: string | null
+          endpoint_id: string
+          event_id: string
+          event_type: string
+          failed_at: string | null
+          id: string
+          payload: Json
+          resource_id: string
+          resource_type: string
+          response_body: string | null
+          response_status: number | null
+          user_id: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          delivered_at?: string | null
+          endpoint_id: string
+          event_id?: string
+          event_type: string
+          failed_at?: string | null
+          id?: string
+          payload?: Json
+          resource_id: string
+          resource_type: string
+          response_body?: string | null
+          response_status?: number | null
+          user_id: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          delivered_at?: string | null
+          endpoint_id?: string
+          event_id?: string
+          event_type?: string
+          failed_at?: string | null
+          id?: string
+          payload?: Json
+          resource_id?: string
+          resource_type?: string
+          response_body?: string | null
+          response_status?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_deliveries_endpoint_id_fkey"
+            columns: ["endpoint_id"]
+            isOneToOne: false
+            referencedRelation: "webhook_endpoints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhook_endpoints: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string
+          last_delivery_at: string | null
+          last_failure_at: string | null
+          last_failure_reason: string | null
+          last_success_at: string | null
+          signing_secret: string
+          signing_secret_hash: string
+          signing_secret_hint: string
+          subscribed_events: string[]
+          target_url: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label: string
+          last_delivery_at?: string | null
+          last_failure_at?: string | null
+          last_failure_reason?: string | null
+          last_success_at?: string | null
+          signing_secret: string
+          signing_secret_hash: string
+          signing_secret_hint: string
+          subscribed_events?: string[]
+          target_url: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          last_delivery_at?: string | null
+          last_failure_at?: string | null
+          last_failure_reason?: string | null
+          last_success_at?: string | null
+          signing_secret?: string
+          signing_secret_hash?: string
+          signing_secret_hint?: string
+          subscribed_events?: string[]
+          target_url?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

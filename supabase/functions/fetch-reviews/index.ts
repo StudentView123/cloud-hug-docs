@@ -6,6 +6,7 @@ import {
   markGoogleError,
   markGoogleSyncSuccess,
 } from "../_shared/google-connection.ts";
+import { emitWebhookEvent } from "../_shared/webhooks.ts";
 
 interface GoogleErrorResponse {
   error?: {
@@ -298,6 +299,24 @@ serve(async (req) => {
                   } else {
                     updatedToArchivedFalse++;
                   }
+
+                  if (existingReview.has_google_reply !== hasGoogleReply) {
+                    await emitWebhookEvent({
+                      supabase,
+                      userId: user.id,
+                      eventType: "reply.status_changed",
+                      resourceType: "reply",
+                      resourceId: existingReview.id,
+                      payload: {
+                        reviewId: existingReview.id,
+                        previousStatus: existingReview.has_google_reply ? "posted" : "none",
+                        currentStatus: hasGoogleReply ? "posted" : "none",
+                        googleReplyContent,
+                        googleReplyTime,
+                        source: "sync",
+                      },
+                    });
+                  }
                 }
               }
             } else if (locationId) {
@@ -328,6 +347,18 @@ serve(async (req) => {
               if (newReview) {
                 allReviews.push(newReview);
                 insertedNew++;
+                await emitWebhookEvent({
+                  supabase,
+                  userId: user.id,
+                  eventType: "review.created",
+                  resourceType: "review",
+                  resourceId: newReview.id,
+                  payload: {
+                    review: newReview,
+                    locationId,
+                    source: "sync",
+                  },
+                });
               }
             }
           }
