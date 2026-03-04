@@ -211,6 +211,7 @@ serve(async (req) => {
               .from('reviews')
               .select('id, has_google_reply, google_reply_content, archived, rating, rating_history, sentiment')
               .eq('google_review_id', review.name || review.reviewId)
+              .eq('location_id', locationId)
               .maybeSingle();
 
             if (existingReview) {

@@ -7,16 +7,19 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.fetch-reviews]
-verify_jwt = true
+verify_jwt = false
 
 [functions.generate-reply]
-verify_jwt = true
+verify_jwt = false
 
 [functions.check-connection]
 verify_jwt = true
 
 [functions.post-reply]
-verify_jwt = true
+verify_jwt = false
+
+[functions.api-v1]
+verify_jwt = false
 
 [functions.create-checkout]
 verify_jwt = true
