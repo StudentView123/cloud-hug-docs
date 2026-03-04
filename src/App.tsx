@@ -20,6 +20,7 @@ import Pricing from "./pages/Pricing";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Docs from "./pages/Docs";
+import Integrations from "./pages/Integrations";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="/review-audit" element={<ProtectedPage><ReviewAudit /></ProtectedPage>} />
             <Route path="/support" element={<ProtectedPage><Support /></ProtectedPage>} />
             <Route path="/settings" element={<ProtectedPage><Settings /></ProtectedPage>} />
+            <Route path="/integrations" element={<ProtectedPage><Integrations /></ProtectedPage>} />
             <Route path="/install" element={<Install />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/privacy" element={<Privacy />} />

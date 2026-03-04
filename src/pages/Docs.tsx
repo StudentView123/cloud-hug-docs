@@ -29,6 +29,9 @@ const Docs = () => {
             <Button asChild variant="outline">
               <Link to="/login">Open app</Link>
             </Button>
+            <Button asChild variant="outline">
+              <Link to="/integrations">Open integrations</Link>
+            </Button>
             <Button asChild>
               <Link to="/settings">Manage connection</Link>
             </Button>
