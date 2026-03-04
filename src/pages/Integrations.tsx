@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocations } from "@/hooks/useLocations";
 import { ApiKeyManager } from "@/components/integrations/ApiKeyManager";
+import { WebhookManager } from "@/components/integrations/WebhookManager";
 import { ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
 
 interface ConnectionStatus {
@@ -104,7 +105,10 @@ const Integrations = () => {
 
       <div className="p-4 md:p-8">
         <div className="mx-auto grid max-w-6xl gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-          <ApiKeyManager baseUrl={baseUrl} token={token} />
+          <div className="space-y-6">
+            <ApiKeyManager baseUrl={baseUrl} token={token} />
+            <WebhookManager baseUrl={baseUrl} token={token} />
+          </div>
 
           <div className="space-y-6">
             <Card className="p-6">
@@ -174,9 +178,10 @@ const Integrations = () => {
               <h2>Recommended connection flow</h2>
               <ol className="mt-4 space-y-3 text-sm text-muted-foreground">
                 <li>1. Create an API key for your backend.</li>
-                <li>2. Save it in your other website's server secrets.</li>
-                <li>3. Call Review Hub from your backend, not directly from the browser.</li>
-                <li>4. Use sync on a schedule and fetch reviews or post replies on demand.</li>
+                <li>2. Add one or more webhook URLs for automatic review and reply updates.</li>
+                <li>3. Save the API key and webhook signing secret in your other website's server secrets.</li>
+                <li>4. Call Review Hub from your backend, not directly from the browser.</li>
+                <li>5. Use sync on a schedule as a fallback, while webhooks handle near-real-time changes.</li>
               </ol>
             </Card>
           </div>

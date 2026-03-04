@@ -7,6 +7,7 @@ import {
   markGoogleError,
   markGoogleSyncSuccess,
 } from "../_shared/google-connection.ts";
+import { emitWebhookEvent } from "../_shared/webhooks.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -86,6 +87,22 @@ serve(async (req) => {
     });
 
     await markGoogleSyncSuccess(supabase, user.id);
+    await emitWebhookEvent({
+      supabase,
+      userId: user.id,
+      eventType: "reply.status_changed",
+      resourceType: "reply",
+      resourceId: replyId,
+      payload: {
+        reviewId: ownedReview.id,
+        replyId,
+        previousStatus: "draft",
+        currentStatus: "posted",
+        postedAt: new Date().toISOString(),
+        googleReply: googleReplyData,
+        source: "post-reply",
+      },
+    });
 
     return new Response(JSON.stringify({ success: true, message: "Reply posted to Google successfully" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

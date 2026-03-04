@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { BookOpen, KeyRound, RefreshCw, Send, ShieldCheck, Server } from "lucide-react";
+import { BookOpen, KeyRound, RefreshCw, Send, ShieldCheck, Server, Webhook } from "lucide-react";
 
 const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-v1`;
 
@@ -15,6 +15,32 @@ const endpoints = [
   { method: "PUT", path: "/reviews/:id/reply", note: "Posts a saved draft reply back to Google Business Profile." },
   { method: "POST", path: "/sync", note: "Triggers a sync for all or selected locations." },
 ];
+
+const webhookPayloadExample = `{
+  "id": "delivery-id",
+  "type": "review.created",
+  "createdAt": "2026-03-04T16:00:00.000Z",
+  "data": {
+    "review": {
+      "id": "review-id",
+      "rating": 5,
+      "author_name": "Jane",
+      "text": "Amazing service"
+    },
+    "source": "sync"
+  }
+}`;
+
+const signatureExample = `const crypto = require("crypto");
+
+function isValidReviewHubWebhook(rawBody, signature, timestamp, secret) {
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(timestamp + "." + rawBody)
+    .digest("hex");
+
+  return signature === "sha256=" + expected;
+}`;
 
 const Docs = () => {
   return (
@@ -163,6 +189,32 @@ await fetch("${baseUrl}/reviews/REVIEW_ID/reply", {
           </Card>
         </section>
 
+        <section className="grid gap-6 lg:grid-cols-2">
+          <Card className="p-6">
+            <div className="mb-3 flex items-center gap-2">
+              <Webhook className="h-5 w-5 text-primary" />
+              <h2>Webhook events</h2>
+            </div>
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <p><code>review.created</code> fires when a sync inserts a brand-new review.</p>
+              <p><code>reply.status_changed</code> fires when a draft reply is generated or a reply becomes posted.</p>
+              <p>Each delivery includes <code>x-review-hub-event</code>, <code>x-review-hub-delivery</code>, <code>x-review-hub-timestamp</code>, and <code>x-review-hub-signature</code>.</p>
+            </div>
+            <pre className="mt-4 overflow-x-auto rounded-xl bg-secondary p-4 text-sm text-secondary-foreground"><code>{webhookPayloadExample}</code></pre>
+          </Card>
+
+          <Card className="p-6">
+            <div className="mb-3 flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              <h2>Verify the signature</h2>
+            </div>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Use the signing secret shown once when you create the webhook endpoint in Integrations.
+            </p>
+            <pre className="overflow-x-auto rounded-xl bg-secondary p-4 text-sm text-secondary-foreground"><code>{signatureExample}</code></pre>
+          </Card>
+        </section>
+
         <section>
           <Card className="p-6">
             <div className="flex items-start gap-3">
@@ -170,8 +222,7 @@ await fetch("${baseUrl}/reviews/REVIEW_ID/reply", {
               <div>
                 <h2 className="mb-2">Recommended architecture</h2>
                 <p className="text-muted-foreground">
-                  Your other website's backend stores the API key, calls Review Hub on a schedule or on demand,
-                  and returns only the data your frontend needs. This keeps credentials off the client and gives you a clean place for caching, approval flows, and business rules.
+                  Your other website's backend stores the API key, receives signed webhook events, and uses Review Hub API calls only when it needs more detail or wants to trigger a sync.
                 </p>
               </div>
             </div>
