@@ -130,6 +130,63 @@ export type Database = {
         }
         Relationships: []
       }
+      google_connections: {
+        Row: {
+          access_token: string | null
+          connection_status: string
+          created_at: string
+          google_account_email: string | null
+          google_account_name: string | null
+          google_account_picture_url: string | null
+          id: string
+          last_error: string | null
+          last_refreshed_at: string | null
+          last_sync_at: string | null
+          provider: string
+          refresh_token: string | null
+          scopes: string[]
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          connection_status?: string
+          created_at?: string
+          google_account_email?: string | null
+          google_account_name?: string | null
+          google_account_picture_url?: string | null
+          id?: string
+          last_error?: string | null
+          last_refreshed_at?: string | null
+          last_sync_at?: string | null
+          provider?: string
+          refresh_token?: string | null
+          scopes?: string[]
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          connection_status?: string
+          created_at?: string
+          google_account_email?: string | null
+          google_account_name?: string | null
+          google_account_picture_url?: string | null
+          id?: string
+          last_error?: string | null
+          last_refreshed_at?: string | null
+          last_sync_at?: string | null
+          provider?: string
+          refresh_token?: string | null
+          scopes?: string[]
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       locations: {
         Row: {
           address: string | null

@@ -1,10 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import {
+  corsHeaders,
+  createUserClient,
+  getValidGoogleAccessToken,
+  markGoogleError,
+  markGoogleSyncSuccess,
+} from "../_shared/google-connection.ts";
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -12,42 +13,16 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('No authorization header');
-    }
+    const { supabase, user } = await createUserClient(req);
+    const { accessToken } = await getValidGoogleAccessToken(supabase, user.id);
 
-    const jwt = authHeader.replace('Bearer ', '');
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: `Bearer ${jwt}` } } }
-    );
+    const { data: profileConnection } = await (supabase as any)
+      .from('google_connections')
+      .select('google_account_email, google_account_name, google_account_picture_url, token_expires_at, refresh_token, last_error')
+      .eq('user_id', user.id)
+      .eq('provider', 'google')
+      .maybeSingle();
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
-    if (userError || !user) {
-      throw new Error('Not authenticated');
-    }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('google_access_token, google_refresh_token, token_expires_at')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.google_access_token) {
-      return new Response(
-        JSON.stringify({
-          connected: false,
-          message: "No Google tokens found"
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const tokenExpired = profile.token_expires_at && new Date(profile.token_expires_at) < new Date();
-
-    // Probe multiple valid Business Profile API endpoints to avoid misrouted HTML 404s
     const endpoints = [
       'https://businessprofile.googleapis.com/v1/accounts',
       'https://mybusinessaccountmanagement.googleapis.com/v1/accounts',
@@ -59,17 +34,14 @@ serve(async (req) => {
 
     for (const url of endpoints) {
       try {
-        console.log('Probing Google API:', url);
         const resp = await fetch(url, {
-          headers: { Authorization: `Bearer ${profile.google_access_token}` },
+          headers: { Authorization: `Bearer ${accessToken}` },
         });
 
         const contentType = resp.headers.get('content-type') || '';
         const bodyText = await resp.text();
         const trimmed = bodyText.trim().slice(0, 1000);
-        const htmlDetected = contentType.includes('text/html') ||
-          trimmed.startsWith('<!DOCTYPE html') ||
-          trimmed.startsWith('<html');
+        const htmlDetected = contentType.includes('text/html') || trimmed.startsWith('<!DOCTYPE html') || trimmed.startsWith('<html');
 
         const attempt: any = {
           urlUsed: url,
@@ -88,31 +60,19 @@ serve(async (req) => {
                 code: parsed.error?.code || parsed.error?.status,
                 status: parsed.error?.status,
               };
-              const quotaDetail = parsed.error?.details?.find((d: any) => d['@type']?.includes('ErrorInfo'));
-              if (quotaDetail) {
-                attempt.parsedError.quota = {
-                  service: quotaDetail?.metadata?.service,
-                  quota_limit_value: quotaDetail?.metadata?.quota_limit_value,
-                  reason: quotaDetail?.reason,
-                };
-              }
             } catch {
-              attempt.parseError = true;
               attempt.bodySnippet = trimmed;
             }
           } else {
             attempt.bodySnippet = trimmed;
           }
         } else {
-          // Successful call
           if (!htmlDetected && contentType.includes('application/json')) {
             try {
               const data = JSON.parse(bodyText);
               accountsFound = data.accounts?.length || 0;
               attempt.accountsFound = accountsFound;
-            } catch (_) {
-              // ignore parse error on success without JSON
-            }
+            } catch {}
           }
           anySuccess = true;
         }
@@ -126,31 +86,38 @@ serve(async (req) => {
       }
     }
 
-    const primary = attempts[0] || null;
-
-    const diagnostics: any = {
-      connected: true,
-      tokenExpired,
-      tokenExpiresAt: profile.token_expires_at,
-      hasRefreshToken: !!profile.google_refresh_token,
-      apiHealthy: anySuccess,
-      accountsFound,
-      apiTest: primary,
-      apiTests: attempts,
-    };
+    if (anySuccess) {
+      await markGoogleSyncSuccess(supabase, user.id);
+    }
 
     return new Response(
-      JSON.stringify(diagnostics),
+      JSON.stringify({
+        connected: true,
+        tokenExpired: profileConnection?.token_expires_at ? new Date(profileConnection.token_expires_at) < new Date() : false,
+        tokenExpiresAt: profileConnection?.token_expires_at,
+        hasRefreshToken: !!profileConnection?.refresh_token,
+        apiHealthy: anySuccess,
+        accountsFound,
+        accountEmail: profileConnection?.google_account_email ?? null,
+        accountName: profileConnection?.google_account_name ?? null,
+        accountPictureUrl: profileConnection?.google_account_picture_url ?? null,
+        lastError: profileConnection?.last_error ?? null,
+        apiTest: attempts[0] || null,
+        apiTests: attempts,
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
+    try {
+      const { supabase, user } = await createUserClient(req);
+      await markGoogleError(supabase, user.id, error);
+    } catch {}
+
     return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }),
-      { 
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }

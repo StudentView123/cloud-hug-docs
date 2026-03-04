@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { getReturnPathFromState } from "@/lib/googleConnection";
 
 const AuthCallback = () => {
   const [searchParams] = useSearchParams();
@@ -11,83 +12,70 @@ const AuthCallback = () => {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // First, check if we already have a session (after magic link redirect)
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session) {
-          console.log('Session already exists, redirecting to dashboard');
-          navigate('/dashboard');
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session) {
+          setError("Please sign in before connecting Google Business.");
+          setTimeout(() => navigate("/login"), 2000);
           return;
         }
 
-        const code = searchParams.get('code');
-        const errorParam = searchParams.get('error');
+        const code = searchParams.get("code");
+        const errorParam = searchParams.get("error");
+        const returnPath = getReturnPathFromState(searchParams.get("state"));
 
         if (errorParam) {
-          setError('Authentication failed. Please try again.');
-          setTimeout(() => navigate('/login'), 3000);
+          setError("Google authorization failed. Please try again.");
+          setTimeout(() => navigate(returnPath), 2500);
           return;
         }
 
         if (!code) {
-          setError('No authorization code received.');
-          setTimeout(() => navigate('/login'), 3000);
+          setError("No authorization code received.");
+          setTimeout(() => navigate(returnPath), 2500);
           return;
         }
 
-        console.log('Exchanging Google code for magic link');
-        
-        // Exchange code for magic link via edge function
-        const { data, error: authError } = await supabase.functions.invoke('google-auth', {
+        const { data, error: authError } = await supabase.functions.invoke("google-auth", {
           body: { code },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
         });
 
         if (authError) {
-          console.error('Auth error:', authError);
-          setError(authError.message || 'Failed to complete authentication.');
-          setTimeout(() => navigate('/login'), 3000);
-          return;
+          throw authError;
         }
 
         if (data?.error) {
-          console.error('Backend error:', data.error);
-          setError(data.error);
-          setTimeout(() => navigate('/login'), 3000);
-          return;
+          throw new Error(data.error);
         }
 
-        if (data?.action_link) {
-          console.log('Redirecting to magic link to establish session');
-          // Redirect to the magic link - Supabase will handle session creation
-          window.location.href = data.action_link;
-        } else {
-          console.error('Invalid response data:', data);
-          setError('Authentication response invalid - no action link returned.');
-          setTimeout(() => navigate('/login'), 3000);
-        }
+        navigate(returnPath, { replace: true });
       } catch (err) {
-        console.error('Callback error:', err);
-        setError('An unexpected error occurred.');
-        setTimeout(() => navigate('/login'), 3000);
+        setError(err instanceof Error ? err.message : "An unexpected error occurred.");
+        setTimeout(() => navigate("/settings"), 2500);
       }
     };
 
     handleCallback();
-  }, [searchParams, navigate]);
+  }, [navigate, searchParams]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-secondary">
       <div className="text-center">
         {error ? (
           <div className="text-destructive">
-            <p className="text-lg font-semibold mb-2">Error</p>
+            <p className="mb-2 text-lg font-semibold">Connection error</p>
             <p>{error}</p>
-            <p className="text-sm text-muted-foreground mt-2">Redirecting...</p>
+            <p className="mt-2 text-sm text-muted-foreground">Redirecting…</p>
           </div>
         ) : (
           <div>
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <p className="text-lg">Completing authentication...</p>
+            <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin" />
+            <p className="text-lg">Connecting Google Business…</p>
           </div>
         )}
       </div>
