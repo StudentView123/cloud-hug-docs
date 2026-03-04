@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, MapPin, Activity, Settings, Archive, ClipboardCheck } from "lucide-react";
+import { LayoutDashboard, MapPin, Settings, Archive, PlugZap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -7,10 +7,10 @@ import { AppSidebar } from "@/components/AppSidebar";
 
 const primaryNav = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, shortName: "Home" },
-  { name: "Locations", href: "/locations", icon: MapPin, shortName: "Locations" },
+  { name: "Locations", href: "/locations", icon: MapPin, shortName: "Places" },
   { name: "Archive", href: "/archive", icon: Archive, shortName: "Archive" },
-  { name: "Activity Log", href: "/activity-log", icon: Activity, shortName: "Activity" },
-  { name: "Review Audit", href: "/review-audit", icon: ClipboardCheck, shortName: "Audit" },
+  { name: "Integrations", href: "/integrations", icon: PlugZap, shortName: "API" },
+  { name: "Settings", href: "/settings", icon: Settings, shortName: "Settings" },
 ];
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
