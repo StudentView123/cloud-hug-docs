@@ -1,5 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, createUserClient, getGoogleConnection } from "../_shared/google-connection.ts";
+import {
+  corsHeaders,
+  createInternalFunctionHeaders,
+  createUserClient,
+  getGoogleConnection,
+  getOwnedReview,
+  getUserLocationIds,
+  type UserClient,
+} from "../_shared/google-connection.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -7,14 +15,10 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-const invokeInternalFunction = async (name: string, jwt: string, body?: unknown) => {
+const invokeInternalFunction = async (name: string, auth: UserClient, body?: unknown) => {
   const response = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/${name}`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${jwt}`,
-      apikey: Deno.env.get("SUPABASE_ANON_KEY")!,
-      "Content-Type": "application/json",
-    },
+    headers: createInternalFunctionHeaders(auth),
     body: JSON.stringify(body ?? {}),
   });
 
@@ -28,13 +32,44 @@ const invokeInternalFunction = async (name: string, jwt: string, body?: unknown)
   return { ok: true, status: response.status, data };
 };
 
+const createApiKeyValue = () => {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  const secret = btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  return `rh_live_${secret}`;
+};
+
+const hashValue = async (value: string) => {
+  const encoded = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", encoded);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+};
+
+const normalizeApiKey = (row: {
+  id: string;
+  label: string;
+  key_prefix: string;
+  created_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+}) => ({
+  id: row.id,
+  label: row.label,
+  keyPrefix: row.key_prefix,
+  createdAt: row.created_at,
+  lastUsedAt: row.last_used_at,
+  revokedAt: row.revoked_at,
+});
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { supabase, user, jwt } = await createUserClient(req);
+    const auth = await createUserClient(req);
+    const { supabase, user } = auth;
     const url = new URL(req.url);
     const route = url.pathname.split("/api-v1")[1] || "/";
     const segments = route.split("/").filter(Boolean);
@@ -63,11 +98,71 @@ serve(async (req) => {
       const { data, error } = await supabase
         .from("locations")
         .select("id, google_location_id, name, address, rating, review_count, updated_at")
+        .eq("user_id", user.id)
         .order("name", { ascending: true });
 
       if (error) throw error;
       return json({ data });
     }
+
+    if (req.method === "GET" && route === "/api-keys") {
+      if (auth.authMode !== "user_token") {
+        return json({ error: "API key management requires a signed-in session" }, 403);
+      }
+
+      const { data, error } = await supabase
+        .from("api_keys")
+        .select("id, label, key_prefix, created_at, last_used_at, revoked_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return json({ data: (data ?? []).map(normalizeApiKey) });
+    }
+
+    if (req.method === "POST" && route === "/api-keys") {
+      if (auth.authMode !== "user_token") {
+        return json({ error: "API key management requires a signed-in session" }, 403);
+      }
+
+      const body = await req.json().catch(() => ({}));
+      const label = typeof body.label === "string" ? body.label.trim() : "";
+      if (!label) {
+        return json({ error: "Label is required" }, 400);
+      }
+
+      const apiKey = createApiKeyValue();
+      const keyHash = await hashValue(apiKey);
+      const keyPrefix = apiKey.slice(0, 14);
+
+      const { data, error } = await supabase
+        .from("api_keys")
+        .insert({
+          user_id: user.id,
+          label,
+          key_prefix: keyPrefix,
+          key_hash: keyHash,
+        })
+        .select("id, label, key_prefix, created_at, last_used_at, revoked_at")
+        .single();
+
+      if (error) throw error;
+      return json({ apiKey, key: normalizeApiKey(data) }, 201);
+    }
+
+    if (req.method === "POST" && segments[0] === "api-keys" && segments[1] && segments[2] === "revoke") {
+      if (auth.authMode !== "user_token") {
+        return json({ error: "API key management requires a signed-in session" }, 403);
+      }
+
+      const { data, error } = await supabase.rpc("revoke_api_key", { _api_key_id: segments[1] });
+      if (error) throw error;
+      if (!data) return json({ error: "API key not found" }, 404);
+
+      return json({ key: normalizeApiKey(data) });
+    }
+
+    const locationIds = await getUserLocationIds(supabase, user.id);
 
     if (req.method === "GET" && segments[0] === "reviews" && segments.length === 1) {
       const page = Math.max(Number(url.searchParams.get("page") || 1), 1);
@@ -75,9 +170,14 @@ serve(async (req) => {
       const from = (page - 1) * limit;
       const to = from + limit - 1;
 
+      if (locationIds.length === 0) {
+        return json({ data: [], pagination: { page, limit, total: 0, hasMore: false } });
+      }
+
       let query = supabase
         .from("reviews")
-        .select(`
+        .select(
+          `
           id,
           google_review_id,
           location_id,
@@ -94,7 +194,10 @@ serve(async (req) => {
           updated_at,
           location:locations(id, name, address),
           replies(id, content, status, is_ai_generated, created_at, posted_at, needs_review)
-        `, { count: "exact" })
+        `,
+          { count: "exact" }
+        )
+        .in("location_id", locationIds)
         .order("review_created_at", { ascending: false })
         .range(from, to);
 
@@ -102,7 +205,7 @@ serve(async (req) => {
       const rating = url.searchParams.get("rating");
       const archived = url.searchParams.get("archived");
 
-      if (locationId) query = query.eq("location_id", locationId);
+      if (locationId && locationIds.includes(locationId)) query = query.eq("location_id", locationId);
       if (rating) query = query.eq("rating", Number(rating));
       if (archived === "true" || archived === "false") query = query.eq("archived", archived === "true");
 
@@ -121,9 +224,11 @@ serve(async (req) => {
     }
 
     if (req.method === "GET" && segments[0] === "reviews" && segments[1] && segments.length === 2) {
-      const { data, error } = await supabase
-        .from("reviews")
-        .select(`
+      const data = await getOwnedReview(
+        supabase,
+        user.id,
+        segments[1],
+        `
           id,
           google_review_id,
           location_id,
@@ -140,26 +245,21 @@ serve(async (req) => {
           updated_at,
           location:locations(id, name, address),
           replies(id, content, status, is_ai_generated, created_at, posted_at, needs_review)
-        `)
-        .eq("id", segments[1])
-        .single();
+        `
+      );
 
-      if (error) throw error;
+      if (!data) return json({ error: "Review not found" }, 404);
       return json({ data });
     }
 
     if (req.method === "POST" && segments[0] === "reviews" && segments[1] && segments[2] === "generate-reply") {
-      const { data: review, error } = await supabase
-        .from("reviews")
-        .select("id, text, rating, author_name")
-        .eq("id", segments[1])
-        .single();
+      const review = await getOwnedReview(supabase, user.id, segments[1], "id, text, rating, author_name");
 
-      if (error || !review) {
+      if (!review) {
         return json({ error: "Review not found" }, 404);
       }
 
-      const result = await invokeInternalFunction("generate-reply", jwt, {
+      const result = await invokeInternalFunction("generate-reply", auth, {
         reviewId: review.id,
         reviewText: review.text ?? "",
         rating: review.rating,
@@ -170,6 +270,11 @@ serve(async (req) => {
     }
 
     if (req.method === "PUT" && segments[0] === "reviews" && segments[1] && segments[2] === "reply") {
+      const ownedReview = await getOwnedReview(supabase, user.id, segments[1], "id");
+      if (!ownedReview) {
+        return json({ error: "Review not found" }, 404);
+      }
+
       const body = await req.json().catch(() => ({}));
       let replyId = body.replyId as string | undefined;
 
@@ -191,7 +296,7 @@ serve(async (req) => {
         return json({ error: "No draft reply found for this review" }, 404);
       }
 
-      const result = await invokeInternalFunction("post-reply", jwt, {
+      const result = await invokeInternalFunction("post-reply", auth, {
         replyId,
         reviewId: segments[1],
       });
@@ -201,7 +306,7 @@ serve(async (req) => {
 
     if (req.method === "POST" && route === "/sync") {
       const body = await req.json().catch(() => ({}));
-      const result = await invokeInternalFunction("fetch-reviews", jwt, body);
+      const result = await invokeInternalFunction("fetch-reviews", auth, body);
       return json(result.data, result.status);
     }
 

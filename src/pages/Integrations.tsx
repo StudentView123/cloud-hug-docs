@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Card } from "@/components/ui/card";
@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocations } from "@/hooks/useLocations";
-import { Copy, ExternalLink, KeyRound, Link2, RefreshCw, ShieldCheck, TerminalSquare } from "lucide-react";
+import { ApiKeyManager } from "@/components/integrations/ApiKeyManager";
+import { ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
 
 interface ConnectionStatus {
   connected: boolean;
@@ -29,65 +30,15 @@ const formatDate = (value: string | null) => {
   return new Date(value).toLocaleString();
 };
 
-const maskToken = (token: string | null) => {
-  if (!token) return "No active session token";
-  if (token.length <= 24) return token;
-  return `${token.slice(0, 16)}••••${token.slice(-12)}`;
-};
-
 const Integrations = () => {
   const { toast } = useToast();
-  const { session, user } = useAuth();
+  const { session } = useAuth();
   const { data: locations } = useLocations();
   const [connection, setConnection] = useState<ConnectionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const token = session?.access_token ?? null;
-
-  const examples = useMemo(() => {
-    const authHeader = token ? `Bearer ${token}` : "Bearer YOUR_USER_TOKEN";
-
-    return [
-      {
-        title: "List reviews",
-        language: "curl",
-        code: `curl -X GET "${baseUrl}/reviews?limit=10&page=1" \\\n  -H "Authorization: ${authHeader}"`,
-      },
-      {
-        title: "Check connection health",
-        language: "JavaScript",
-        code: `const response = await fetch("${baseUrl}/connection/status", {
-  headers: {
-    Authorization: "${authHeader}",
-  },
-});
-
-const data = await response.json();`,
-      },
-      {
-        title: "Post a reply from another platform",
-        language: "JavaScript",
-        code: `await fetch("${baseUrl}/reviews/REVIEW_ID/reply", {
-  method: "PUT",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: "${authHeader}",
-  },
-  body: JSON.stringify({ replyId: "DRAFT_REPLY_ID" }),
-});`,
-      },
-    ];
-  }, [token]);
-
-  const copyText = async (value: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      toast({ title: `${label} copied`, description: "Ready to paste into your integration." });
-    } catch {
-      toast({ title: `Couldn't copy ${label.toLowerCase()}`, description: "Copy it manually instead.", variant: "destructive" });
-    }
-  };
 
   const loadConnection = async () => {
     setLoading(true);
@@ -114,15 +65,9 @@ const data = await response.json();`,
     }
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadConnection();
-    setRefreshing(false);
-  };
-
   useEffect(() => {
     if (token) {
-      loadConnection();
+      void loadConnection();
     }
   }, [token]);
 
@@ -134,11 +79,19 @@ const data = await response.json();`,
             <p className="text-sm uppercase tracking-[0.18em] text-muted-foreground">External platforms</p>
             <h1 className="mt-1">Integrations</h1>
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              Use your signed-in user token to read reviews, monitor connection health, sync data, and post replies from another app.
+              Connect your other website through backend API keys, monitor connection health, and copy server-ready examples.
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleRefresh} disabled={refreshing || loading || !token}>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                setRefreshing(true);
+                await loadConnection();
+                setRefreshing(false);
+              }}
+              disabled={refreshing || loading || !token}
+            >
               <RefreshCw className={`mr-2 h-4 w-4 ${refreshing || loading ? "animate-spin" : ""}`} />
               Refresh
             </Button>
@@ -151,73 +104,7 @@ const data = await response.json();`,
 
       <div className="p-4 md:p-8">
         <div className="mx-auto grid max-w-6xl gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-          <div className="space-y-6">
-            <Card className="p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="mb-3 flex items-center gap-2">
-                    <KeyRound className="h-5 w-5 text-primary" />
-                    <h2>User API token</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    This bearer token lets external platforms call Review Hub on behalf of the currently signed-in user.
-                  </p>
-                </div>
-                <Badge variant="outline">User token auth</Badge>
-              </div>
-
-              <div className="mt-5 rounded-xl border border-border bg-secondary p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Current token</p>
-                <code className="mt-3 block overflow-x-auto text-sm text-secondary-foreground">{maskToken(token)}</code>
-              </div>
-
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                <Button onClick={() => copyText(token ?? "", "Token")} disabled={!token}>
-                  <Copy className="mr-2 h-4 w-4" />
-                  Copy token
-                </Button>
-                <Button variant="outline" onClick={() => copyText(baseUrl, "Base URL")}>
-                  <Link2 className="mr-2 h-4 w-4" />
-                  Copy base URL
-                </Button>
-              </div>
-
-              <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <div className="rounded-xl border border-border p-4">
-                  <p className="text-sm text-muted-foreground">Signed-in account</p>
-                  <p className="mt-2 font-medium">{user?.email ?? "Not available"}</p>
-                </div>
-                <div className="rounded-xl border border-border p-4">
-                  <p className="text-sm text-muted-foreground">API base URL</p>
-                  <p className="mt-2 break-all font-medium">{baseUrl}</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-6">
-              <div className="mb-4 flex items-center gap-2">
-                <TerminalSquare className="h-5 w-5 text-primary" />
-                <h2>Copy-paste examples</h2>
-              </div>
-              <div className="space-y-4">
-                {examples.map((example) => (
-                  <div key={example.title} className="rounded-xl border border-border p-4">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-medium">{example.title}</p>
-                        <p className="text-sm text-muted-foreground">{example.language}</p>
-                      </div>
-                      <Button variant="outline" size="sm" onClick={() => copyText(example.code, example.title)}>
-                        <Copy className="mr-2 h-4 w-4" />
-                        Copy
-                      </Button>
-                    </div>
-                    <pre className="overflow-x-auto rounded-lg bg-secondary p-4 text-sm text-secondary-foreground"><code>{example.code}</code></pre>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
+          <ApiKeyManager baseUrl={baseUrl} token={token} />
 
           <div className="space-y-6">
             <Card className="p-6">
@@ -281,6 +168,16 @@ const data = await response.json();`,
                   </Link>
                 </Button>
               </div>
+            </Card>
+
+            <Card className="p-6">
+              <h2>Recommended connection flow</h2>
+              <ol className="mt-4 space-y-3 text-sm text-muted-foreground">
+                <li>1. Create an API key for your backend.</li>
+                <li>2. Save it in your other website's server secrets.</li>
+                <li>3. Call Review Hub from your backend, not directly from the browser.</li>
+                <li>4. Use sync on a schedule and fetch reviews or post replies on demand.</li>
+              </ol>
             </Card>
           </div>
         </div>

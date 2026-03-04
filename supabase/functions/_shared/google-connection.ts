@@ -2,29 +2,42 @@ import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supa
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers": "authorization, x-api-key, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 export type UserClient = {
   supabase: SupabaseClient;
   user: { id: string; email?: string | null };
-  jwt: string;
+  jwt: string | null;
+  authMode: "user_token" | "api_key";
+  apiKey: string | null;
+  apiKeyHash: string | null;
 };
 
-export const createUserClient = async (req: Request): Promise<UserClient> => {
-  const authHeader = req.headers.get("Authorization");
+const getEnv = (name: string) => {
+  const value = Deno.env.get(name);
+  if (!value) throw new Error(`Missing environment variable: ${name}`);
+  return value;
+};
 
-  if (!authHeader) {
-    throw new Error("No authorization header");
-  }
+const createAnonClient = (jwt: string) =>
+  createClient(getEnv("SUPABASE_URL"), getEnv("SUPABASE_ANON_KEY"), {
+    global: { headers: { Authorization: `Bearer ${jwt}` } },
+  });
 
-  const jwt = authHeader.replace(/^Bearer\s+/i, "");
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: `Bearer ${jwt}` } } }
-  );
+const createServiceRoleClient = () =>
+  createClient(getEnv("SUPABASE_URL"), getEnv("SUPABASE_SERVICE_ROLE_KEY"));
 
+const hashApiKey = async (value: string) => {
+  const encoded = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", encoded);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+};
+
+const resolveBearerAuth = async (jwt: string): Promise<UserClient> => {
+  const supabase = createAnonClient(jwt);
   const {
     data: { user },
     error,
@@ -34,8 +47,73 @@ export const createUserClient = async (req: Request): Promise<UserClient> => {
     throw new Error("Not authenticated");
   }
 
-  return { supabase, user: { id: user.id, email: user.email }, jwt };
+  return {
+    supabase,
+    user: { id: user.id, email: user.email },
+    jwt,
+    authMode: "user_token",
+    apiKey: null,
+    apiKeyHash: null,
+  };
 };
+
+const resolveApiKeyAuth = async (apiKey: string): Promise<UserClient> => {
+  const supabase = createServiceRoleClient();
+  const keyHash = await hashApiKey(apiKey);
+
+  const { data: apiKeyRecord, error } = await supabase
+    .from("api_keys")
+    .select("user_id")
+    .eq("key_hash", keyHash)
+    .is("revoked_at", null)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!apiKeyRecord) throw new Error("Invalid API key");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, email")
+    .eq("id", apiKeyRecord.user_id)
+    .maybeSingle();
+
+  await supabase.rpc("touch_api_key_last_used", { _key_hash: keyHash });
+
+  return {
+    supabase,
+    user: { id: apiKeyRecord.user_id, email: profile?.email ?? null },
+    jwt: null,
+    authMode: "api_key",
+    apiKey,
+    apiKeyHash: keyHash,
+  };
+};
+
+export const createUserClient = async (req: Request): Promise<UserClient> => {
+  const apiKey = req.headers.get("x-api-key")?.trim();
+  if (apiKey) {
+    return resolveApiKeyAuth(apiKey);
+  }
+
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    throw new Error("No authorization header");
+  }
+
+  const jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (!jwt) {
+    throw new Error("Not authenticated");
+  }
+
+  return resolveBearerAuth(jwt);
+};
+
+export const createInternalFunctionHeaders = (auth: UserClient) => ({
+  ...(auth.jwt ? { Authorization: `Bearer ${auth.jwt}` } : {}),
+  ...(auth.apiKey ? { "x-api-key": auth.apiKey } : {}),
+  apikey: getEnv("SUPABASE_ANON_KEY"),
+  "Content-Type": "application/json",
+});
 
 type GoogleConnectionRecord = {
   id: string;
@@ -67,6 +145,32 @@ export const getGoogleConnection = async (supabase: SupabaseClient, userId: stri
   }
 
   return data as GoogleConnectionRecord | null;
+};
+
+export const getUserLocationIds = async (supabase: SupabaseClient, userId: string) => {
+  const { data, error } = await supabase.from("locations").select("id").eq("user_id", userId);
+  if (error) throw error;
+  return (data ?? []).map((location) => location.id);
+};
+
+export const getOwnedReview = async (
+  supabase: SupabaseClient,
+  userId: string,
+  reviewId: string,
+  columns: string
+) => {
+  const locationIds = await getUserLocationIds(supabase, userId);
+  if (locationIds.length === 0) return null;
+
+  const { data, error } = await supabase
+    .from("reviews")
+    .select(columns)
+    .eq("id", reviewId)
+    .in("location_id", locationIds)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
 };
 
 const persistConnectionStatus = async (
