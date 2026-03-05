@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Globe, RefreshCw, Trash2, Webhook } from "lucide-react";
+import { Copy, Globe, RefreshCw, Send, Trash2, Webhook } from "lucide-react";
 
 interface WebhookEndpointRecord {
   id: string;
@@ -56,6 +56,7 @@ export function WebhookManager({ baseUrl, token }: WebhookManagerProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [testingId, setTestingId] = useState<string | null>(null);
   const [newSecret, setNewSecret] = useState<string | null>(null);
 
   const headers = useMemo(
@@ -179,6 +180,29 @@ export function WebhookManager({ baseUrl, token }: WebhookManagerProps) {
       });
     } finally {
       setTogglingId(null);
+    }
+  };
+
+  const handleTest = async (endpoint: WebhookEndpointRecord) => {
+    if (!token) return;
+    setTestingId(endpoint.id);
+    try {
+      const response = await fetch(`${baseUrl}/webhooks/${endpoint.id}/test`, {
+        method: "POST",
+        headers,
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to send test webhook");
+      toast({ title: "Test webhook sent", description: "Check your backend logs, then refresh deliveries." });
+      await loadData(false);
+    } catch (error) {
+      toast({
+        title: "Failed to send test webhook",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setTestingId(null);
     }
   };
 
@@ -311,6 +335,10 @@ export function WebhookManager({ baseUrl, token }: WebhookManagerProps) {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={() => handleTest(endpoint)} disabled={testingId === endpoint.id || !endpoint.isActive}>
+                      {testingId === endpoint.id ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                      Send test
+                    </Button>
                     <Button variant="outline" onClick={() => handleToggleActive(endpoint)} disabled={togglingId === endpoint.id}>
                       {togglingId === endpoint.id ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : null}
                       {endpoint.isActive ? "Pause" : "Resume"}
