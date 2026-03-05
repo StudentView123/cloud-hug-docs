@@ -8,6 +8,7 @@ import {
   getUserLocationIds,
   type UserClient,
 } from "../_shared/google-connection.ts";
+import { sendTestWebhook } from "../_shared/webhooks.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -332,6 +333,35 @@ serve(async (req) => {
 
       if (error) throw error;
       return json({ endpoint: normalizeWebhookEndpoint(data) });
+    }
+
+    if (req.method === "POST" && segments[0] === "webhooks" && segments[1] && segments[2] === "test") {
+      if (auth.authMode !== "user_token") {
+        return json({ error: "Webhook management requires a signed-in session" }, 403);
+      }
+
+      const { data: endpoint, error } = await supabase
+        .from("webhook_endpoints")
+        .select("id, user_id, label, target_url, signing_secret, is_active")
+        .eq("id", segments[1])
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!endpoint) return json({ error: "Webhook not found" }, 404);
+      if (!endpoint.is_active) return json({ error: "Resume this webhook before sending a test" }, 400);
+
+      const result = await sendTestWebhook({
+        supabase,
+        endpoint,
+        userId: user.id,
+      });
+
+      if (!result.ok) {
+        return json({ error: result.error ?? "Test webhook failed", deliveryId: result.deliveryId }, 502);
+      }
+
+      return json({ success: true, deliveryId: result.deliveryId, status: result.status });
     }
 
     if (req.method === "DELETE" && segments[0] === "webhooks" && segments[1]) {
