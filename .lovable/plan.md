@@ -1,119 +1,126 @@
 
-What to do right now
+Goal: help you actually use the webhook integration you now have, so your other website can receive automatic updates instead of polling.
 
-1. Log into Review Hub
-- You’re currently on `/login`, so first sign in to the app.
-- After logging in, open `/integrations`.
-
-2. Make sure your Google connection is healthy
-- On the Integrations page, check:
-  - Status
-  - Google account
-  - Last sync
-  - Token expiry
-- If it says “Needs reconnection”, reconnect your Google account in Settings before using the API.
-
-3. Create an API key
-- In Integrations, create a new API key for your other website/backend.
-- Copy the key immediately and save it in your backend secrets.
-- Treat it like a password.
-
-4. Put the key in your other website’s backend
-- Store it as something like:
+How it works
 ```text
-REVIEW_HUB_API_KEY=your_key_here
-```
-- Important: use it only on your server/backend, not in browser code.
-
-5. Call the API from your backend
-Base URL:
-```text
-https://rctsewtjmzkxfqsmgqcc.supabase.co/functions/v1/api-v1
-```
-
-Send this header on every request:
-```text
-x-api-key: YOUR_API_KEY
-```
-
-Useful endpoints
-- `GET /connection/status`
-- `GET /locations`
-- `GET /reviews?limit=25&page=1`
-- `GET /reviews/:id`
-- `POST /reviews/:id/generate-reply`
-- `PUT /reviews/:id/reply`
-- `POST /sync`
-
-Fastest working examples
-
-List reviews:
-```bash
-curl -X GET "https://rctsewtjmzkxfqsmgqcc.supabase.co/functions/v1/api-v1/reviews?limit=10&page=1" \
-  -H "x-api-key: YOUR_API_KEY"
-```
-
-Check connection health:
-```bash
-curl -X GET "https://rctsewtjmzkxfqsmgqcc.supabase.co/functions/v1/api-v1/connection/status" \
-  -H "x-api-key: YOUR_API_KEY"
-```
-
-Node backend example:
-```js
-const response = await fetch("https://rctsewtjmzkxfqsmgqcc.supabase.co/functions/v1/api-v1/reviews?limit=10&page=1", {
-  headers: {
-    "x-api-key": process.env.REVIEW_HUB_API_KEY,
-  },
-});
-
-const data = await response.json();
-console.log(data);
-```
-
-Reply flow
-1. Fetch reviews
-2. Pick a review ID
-3. Generate a draft reply
-4. Post that draft reply
-
-Generate draft:
-```bash
-curl -X POST "https://rctsewtjmzkxfqsmgqcc.supabase.co/functions/v1/api-v1/reviews/REVIEW_ID/generate-reply" \
-  -H "x-api-key: YOUR_API_KEY" \
-  -H "Content-Type: application/json"
-```
-
-Post reply:
-```bash
-curl -X PUT "https://rctsewtjmzkxfqsmgqcc.supabase.co/functions/v1/api-v1/reviews/REVIEW_ID/reply" \
-  -H "x-api-key: YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"replyId":"DRAFT_REPLY_ID"}'
-```
-
-Recommended architecture
-```text
-Your website frontend
-  -> calls your own backend
-Your backend
-  -> stores REVIEW_HUB_API_KEY
-  -> calls Review Hub API
 Review Hub
-  -> reads reviews / syncs / generates replies / posts replies
+  -> detects an event
+     - new review synced
+     - reply draft created / reply posted / reply state changed
+  -> sends an HTTP POST to your webhook URL
+  -> includes signed headers
+Your backend
+  -> verifies the signature
+  -> reads the event type + payload
+  -> updates your own system
 ```
 
-Important notes
-- Do not call Review Hub directly from your frontend.
-- Do not expose the API key in client-side JavaScript.
-- If `/sync` or reply posting fails, first check connection health in Integrations.
+What you need to do
+
+1. Build a webhook endpoint on your other website backend
+- Create a backend route that accepts `POST` requests
+- Example shape:
+  - `/api/review-hub/webhook`
+- This must be on your server/backend, not your frontend
+
+2. Make that endpoint do 3 things
+- Read the raw request body
+- Read these headers:
+  - `x-review-hub-event`
+  - `x-review-hub-delivery`
+  - `x-review-hub-timestamp`
+  - `x-review-hub-signature`
+- Verify the signature using the webhook signing secret
+
+3. Add the webhook in Review Hub
+- Log into the app
+- Open `/integrations`
+- Go to the webhook section
+- Add your backend URL
+- Choose the events you want
+- Copy and save the signing secret immediately in your backend secrets
+
+4. Store the signing secret in your backend
+Example:
+```text
+REVIEW_HUB_WEBHOOK_SECRET=your_signing_secret
+```
+
+5. Handle incoming events
+You currently have these event types:
+- `review.created`
+- `reply.status_changed`
+
+Recommended handling:
+- `review.created`
+  - create/update the review in your other system
+- `reply.status_changed`
+  - update reply status in your other system
+  - if needed, call the API to fetch fresh review/reply details
+
+6. Keep API keys and webhooks together
+Use both:
+- webhook = tells your backend something changed
+- API key = lets your backend fetch more data or trigger actions
+
+Recommended flow
+```text
+Review Hub sends webhook
+  -> your backend verifies signature
+  -> your backend checks event type
+  -> your backend updates local records
+  -> optionally calls Review Hub API with x-api-key for full details
+```
+
+What to test first
+1. Make sure your Google connection is healthy in `/integrations`
+2. Create an API key and save it in your backend
+3. Create one webhook endpoint
+4. Trigger a sync
+5. Confirm your backend receives a signed event
+6. Log the payload and verify the signature before doing anything else
+
+Minimal backend checklist
+- public HTTPS webhook URL
+- POST route
+- raw body access
+- HMAC SHA-256 signature verification
+- secret stored in backend env
+- 200 response when accepted
+- logging for failed signature checks
+
+Important implementation notes
+- Do not expose the webhook secret or API key in browser code
+- Verify the signature before trusting the payload
+- Treat webhook deliveries as retry-safe; your handler should be idempotent
+- Use the delivery ID header to avoid processing duplicates if needed
 
 Best next build step
-- Add this flow to your other website backend:
-  - scheduled `POST /sync`
-  - `GET /reviews`
-  - internal admin action for generate/post reply
+I’d implement this in your other website backend:
+1. webhook receiver
+2. signature verification
+3. event logging
+4. `review.created` sync handler
+5. fallback API fetch using your Review Hub API key
 
-If you want, the next implementation step should be:
-- add a “Test connection” section to Integrations that generates ready-to-paste code for your exact backend stack
-- add webhook support so your other website doesn’t need to poll for new reviews
+Technical details
+- Webhook deliveries are outbound HTTP POST requests from the backend
+- Signature format is HMAC SHA-256 over:
+```text
+timestamp + "." + rawBody
+```
+- The signature arrives in:
+```text
+x-review-hub-signature
+```
+- The event name arrives in:
+```text
+x-review-hub-event
+```
+- You should compare the computed signature to the received one before parsing the event as trusted
+
+If you want the next implementation, I would build one of these:
+1. a ready-to-paste Express webhook receiver
+2. a Laravel webhook receiver
+3. a “Send test webhook” button in Integrations
+4. automatic retries/redelivery for failed webhooks
