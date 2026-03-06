@@ -30,6 +30,8 @@ const Locations = () => {
     checkSession();
   }, [navigate]);
 
+  const [isResolvingPlaceIds, setIsResolvingPlaceIds] = useState(false);
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await queryClient.invalidateQueries({ queryKey: ["locations"] });
@@ -37,6 +39,22 @@ const Locations = () => {
     setIsRefreshing(false);
     toast.success("Review counts refreshed");
   };
+
+  const handleResolvePlaceIds = async () => {
+    setIsResolvingPlaceIds(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("resolve-place-ids");
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["locations"] });
+      toast.success(`Resolved ${data.resolved} of ${data.total} Place IDs`);
+    } catch (err) {
+      toast.error("Failed to resolve Place IDs");
+    } finally {
+      setIsResolvingPlaceIds(false);
+    }
+  };
+
+  const missingPlaceIds = locations?.filter(l => !l.place_id).length ?? 0;
   
   // Get review counts for each location
   const { data: reviewCountsByLocation } = useQuery({
