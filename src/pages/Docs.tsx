@@ -14,7 +14,9 @@ const endpoints = [
   { method: "GET", path: "/reviews/:id", note: "Returns one review with its reply history." },
   { method: "POST", path: "/reviews/:id/generate-reply", note: "Creates an AI draft reply for a review." },
   { method: "PUT", path: "/reviews/:id/reply", note: "Posts a saved draft reply back to Google Business Profile." },
-  { method: "POST", path: "/sync", note: "Triggers a sync for all or selected locations." },
+  { method: "POST", path: "/sync", note: "Triggers a review sync for all or selected locations." },
+  { method: "POST", path: "/sync/locations", note: "Syncs locations from Google Business Profile." },
+  { method: "GET", path: "/sync/status", note: "Returns per-location sync status and overall summary." },
 ];
 
 const webhookPayloadExample = `{
