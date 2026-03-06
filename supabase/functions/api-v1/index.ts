@@ -154,11 +154,24 @@ serve(async (req) => {
     if (req.method === "GET" && route === "/locations") {
       const { data, error } = await supabase
         .from("locations")
-        .select("id, google_location_id, name, address, rating, review_count, updated_at")
+        .select("id, google_location_id, name, address, rating, review_count, place_id, updated_at")
         .eq("user_id", user.id)
         .order("name", { ascending: true });
 
       if (error) throw error;
+      return json({ data });
+    }
+
+    if (req.method === "GET" && segments[0] === "locations" && segments[1] && segments.length === 2) {
+      const { data, error } = await supabase
+        .from("locations")
+        .select("id, google_location_id, name, address, rating, review_count, place_id, created_at, updated_at")
+        .eq("id", segments[1])
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) return json({ error: "Location not found" }, 404);
       return json({ data });
     }
 

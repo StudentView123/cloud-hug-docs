@@ -8,7 +8,8 @@ const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-v1`;
 
 const endpoints = [
   { method: "GET", path: "/connection/status", note: "Returns connection health and account metadata." },
-  { method: "GET", path: "/locations", note: "Lists locations available to the API key owner." },
+  { method: "GET", path: "/locations", note: "Lists locations with place_id, rating, review_count, and address." },
+  { method: "GET", path: "/locations/:id", note: "Returns a single location by ID, including its place_id." },
   { method: "GET", path: "/reviews?limit=25&page=1", note: "Lists reviews with pagination and optional filters." },
   { method: "GET", path: "/reviews/:id", note: "Returns one review with its reply history." },
   { method: "POST", path: "/reviews/:id/generate-reply", note: "Creates an AI draft reply for a review." },

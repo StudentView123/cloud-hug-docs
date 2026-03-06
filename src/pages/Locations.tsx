@@ -2,7 +2,7 @@ import { Layout } from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Star, MapPin, RefreshCw } from "lucide-react";
+import { Star, MapPin, RefreshCw, MapPinned } from "lucide-react";
 import { useLocations } from "@/hooks/useLocations";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -30,6 +30,8 @@ const Locations = () => {
     checkSession();
   }, [navigate]);
 
+  const [isResolvingPlaceIds, setIsResolvingPlaceIds] = useState(false);
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await queryClient.invalidateQueries({ queryKey: ["locations"] });
@@ -37,6 +39,22 @@ const Locations = () => {
     setIsRefreshing(false);
     toast.success("Review counts refreshed");
   };
+
+  const handleResolvePlaceIds = async () => {
+    setIsResolvingPlaceIds(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("resolve-place-ids");
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["locations"] });
+      toast.success(`Resolved ${data.resolved} of ${data.total} Place IDs`);
+    } catch (err) {
+      toast.error("Failed to resolve Place IDs");
+    } finally {
+      setIsResolvingPlaceIds(false);
+    }
+  };
+
+  const missingPlaceIds = locations?.filter(l => !l.place_id).length ?? 0;
   
   // Get review counts for each location
   const { data: reviewCountsByLocation } = useQuery({
@@ -82,16 +100,30 @@ const Locations = () => {
     <Layout>
       <div className={`flex ${isMobile ? 'flex-col gap-3' : 'h-16 items-center justify-between'} border-b border-border ${isMobile ? 'p-4' : 'px-8'}`}>
         <h2>Locations</h2>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={isRefreshing || checkingAuth || isLoading}
-          className={isMobile ? 'w-full' : ''}
-        >
-          <RefreshCw className={isRefreshing ? "animate-spin" : ""} />
-          Refresh Counts
-        </Button>
+        <div className={`flex gap-2 ${isMobile ? 'flex-col w-full' : ''}`}>
+          {missingPlaceIds > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResolvePlaceIds}
+              disabled={isResolvingPlaceIds || checkingAuth || isLoading}
+              className={isMobile ? 'w-full' : ''}
+            >
+              <MapPinned className={isResolvingPlaceIds ? "animate-spin" : ""} />
+              Resolve Place IDs ({missingPlaceIds})
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing || checkingAuth || isLoading}
+            className={isMobile ? 'w-full' : ''}
+          >
+            <RefreshCw className={isRefreshing ? "animate-spin" : ""} />
+            Refresh Counts
+          </Button>
+        </div>
       </div>
 
       <div className={isMobile ? 'p-4' : 'p-8'}>
@@ -120,6 +152,12 @@ const Locations = () => {
                       <div className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
                         <MapPin className="h-4 w-4" />
                         <span>{location.address}</span>
+                      </div>
+                    )}
+                    {location.place_id && (
+                      <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground/70">
+                        <MapPinned className="h-3 w-3" />
+                        <span className="font-mono">{location.place_id}</span>
                       </div>
                     )}
                     <div className="mt-3 flex items-center justify-between">
