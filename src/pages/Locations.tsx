@@ -2,7 +2,7 @@ import { Layout } from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Star, MapPin, RefreshCw } from "lucide-react";
+import { Star, MapPin, RefreshCw, MapPinned } from "lucide-react";
 import { useLocations } from "@/hooks/useLocations";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
