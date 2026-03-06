@@ -227,6 +227,7 @@ export type Database = {
           google_location_id: string
           id: string
           name: string
+          place_id: string | null
           rating: number | null
           review_count: number | null
           updated_at: string
@@ -238,6 +239,7 @@ export type Database = {
           google_location_id: string
           id?: string
           name: string
+          place_id?: string | null
           rating?: number | null
           review_count?: number | null
           updated_at?: string
@@ -249,6 +251,7 @@ export type Database = {
           google_location_id?: string
           id?: string
           name?: string
+          place_id?: string | null
           rating?: number | null
           review_count?: number | null
           updated_at?: string
