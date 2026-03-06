@@ -60,6 +60,8 @@ serve(async (req) => {
       const locationName = location.title || 'Unnamed Location';
       const locationAddress = location.storefrontAddress?.addressLines?.join(', ') || null;
 
+      const locationPlaceId = location.metadata?.placeId || null;
+
       const { data: newLocation, error: insertError } = await supabase
         .from('locations')
         .insert({
@@ -67,45 +69,12 @@ serve(async (req) => {
           google_location_id: location.name,
           name: locationName,
           address: locationAddress,
+          place_id: locationPlaceId,
         })
         .select()
         .single();
 
       if (!insertError && newLocation) {
-        // Resolve Place ID from Google Places API (non-blocking)
-        try {
-          const searchQuery = locationAddress
-            ? `${locationName}, ${locationAddress}`
-            : locationName;
-
-          const placesResponse = await fetch(
-            'https://places.googleapis.com/v1/places:searchText',
-            {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-                'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress',
-              },
-              body: JSON.stringify({ textQuery: searchQuery }),
-            }
-          );
-
-          if (placesResponse.ok) {
-            const placesData = await placesResponse.json();
-            const placeId = placesData.places?.[0]?.id;
-            if (placeId) {
-              await supabase
-                .from('locations')
-                .update({ place_id: placeId })
-                .eq('id', newLocation.id);
-              newLocation.place_id = placeId;
-            }
-          }
-        } catch (placeError) {
-          console.warn(`Failed to resolve Place ID for ${locationName}:`, placeError);
-        }
-
         insertedLocations.push(newLocation);
       }
     }
