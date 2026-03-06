@@ -154,6 +154,12 @@ const Locations = () => {
                         <span>{location.address}</span>
                       </div>
                     )}
+                    {location.place_id && (
+                      <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground/70">
+                        <MapPinned className="h-3 w-3" />
+                        <span className="font-mono">{location.place_id}</span>
+                      </div>
+                    )}
                     <div className="mt-3 flex items-center justify-between">
                       <div className="flex items-center gap-1">
                         {location.rating && (

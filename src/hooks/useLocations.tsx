@@ -8,6 +8,7 @@ export interface Location {
   address: string | null;
   rating: number | null;
   review_count: number | null;
+  place_id: string | null;
   user_id: string;
   created_at: string;
   updated_at: string;
