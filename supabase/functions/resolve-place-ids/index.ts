@@ -65,8 +65,9 @@ serve(async (req) => {
             results.push({ id: location.id, name: location.name, placeId: null });
           }
         } else {
-          console.warn(`Places API error for ${location.name}: ${placesResponse.status}`);
-          results.push({ id: location.id, name: location.name, placeId: null });
+          const errBody = await placesResponse.text().catch(() => '');
+          console.warn(`Places API error for ${location.name}: ${placesResponse.status} — ${errBody}`);
+          results.push({ id: location.id, name: location.name, placeId: null, error: `${placesResponse.status}` });
         }
       } catch (err) {
         console.warn(`Failed to resolve Place ID for ${location.name}:`, err);
