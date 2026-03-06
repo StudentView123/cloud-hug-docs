@@ -1,6 +1,7 @@
 const GOOGLE_BUSINESS_SCOPE = [
   "openid",
   "https://www.googleapis.com/auth/business.manage",
+  "https://www.googleapis.com/auth/cloud-platform",
   "https://www.googleapis.com/auth/userinfo.email",
   "https://www.googleapis.com/auth/userinfo.profile",
 ].join(" ");
