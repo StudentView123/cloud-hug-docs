@@ -100,16 +100,30 @@ const Locations = () => {
     <Layout>
       <div className={`flex ${isMobile ? 'flex-col gap-3' : 'h-16 items-center justify-between'} border-b border-border ${isMobile ? 'p-4' : 'px-8'}`}>
         <h2>Locations</h2>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={isRefreshing || checkingAuth || isLoading}
-          className={isMobile ? 'w-full' : ''}
-        >
-          <RefreshCw className={isRefreshing ? "animate-spin" : ""} />
-          Refresh Counts
-        </Button>
+        <div className={`flex gap-2 ${isMobile ? 'flex-col w-full' : ''}`}>
+          {missingPlaceIds > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResolvePlaceIds}
+              disabled={isResolvingPlaceIds || checkingAuth || isLoading}
+              className={isMobile ? 'w-full' : ''}
+            >
+              <MapPinned className={isResolvingPlaceIds ? "animate-spin" : ""} />
+              Resolve Place IDs ({missingPlaceIds})
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing || checkingAuth || isLoading}
+            className={isMobile ? 'w-full' : ''}
+          >
+            <RefreshCw className={isRefreshing ? "animate-spin" : ""} />
+            Refresh Counts
+          </Button>
+        </div>
       </div>
 
       <div className={isMobile ? 'p-4' : 'p-8'}>
