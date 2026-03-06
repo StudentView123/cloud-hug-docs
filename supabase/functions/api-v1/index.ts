@@ -535,6 +535,16 @@ serve(async (req) => {
       return json(result.data, result.status);
     }
 
+    if (req.method === "POST" && route === "/sync/locations") {
+      const result = await invokeInternalFunction("sync-locations", auth);
+      return json(result.data, result.status);
+    }
+
+    if (req.method === "GET" && route === "/sync/status") {
+      const result = await invokeInternalFunction("check-sync-status", auth);
+      return json(result.data, result.status);
+    }
+
     return json({ error: "Not found" }, 404);
   } catch (error) {
     return json(
