@@ -29,7 +29,7 @@ serve(async (req) => {
     const googleLocations: any[] = [];
 
     for (const account of accounts) {
-      const locationsBaseUrl = `https://mybusinessaccountmanagement.googleapis.com/v1/${account.name}/locations?readMask=name,title,storefrontAddress&pageSize=100`;
+      const locationsBaseUrl = `https://mybusinessaccountmanagement.googleapis.com/v1/${account.name}/locations?readMask=name,title,storefrontAddress,metadata&pageSize=100`;
       let nextPageToken: string | null = null;
 
       do {
