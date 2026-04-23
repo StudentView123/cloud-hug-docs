@@ -17,6 +17,7 @@ const endpoints = [
   { method: "POST", path: "/sync", note: "Triggers a review sync for all or selected locations." },
   { method: "POST", path: "/sync/locations", note: "Syncs locations from Google Business Profile." },
   { method: "GET", path: "/sync/status", note: "Returns per-location sync status and overall summary." },
+  { method: "PATCH", path: "/reviews/:id/dispute", note: "Update dispute tracking status (none, flagged, resolved, rejected) and optional notes." },
 ];
 
 const webhookPayloadExample = `{

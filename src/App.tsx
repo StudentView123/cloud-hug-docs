@@ -21,6 +21,7 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Docs from "./pages/Docs";
 import Integrations from "./pages/Integrations";
+import Disputes from "./pages/Disputes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,7 @@ const App = () => (
             <Route path="/support" element={<ProtectedPage><Support /></ProtectedPage>} />
             <Route path="/settings" element={<ProtectedPage><Settings /></ProtectedPage>} />
             <Route path="/integrations" element={<ProtectedPage><Integrations /></ProtectedPage>} />
+            <Route path="/disputes" element={<ProtectedPage><Disputes /></ProtectedPage>} />
             <Route path="/install" element={<Install />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/privacy" element={<Privacy />} />

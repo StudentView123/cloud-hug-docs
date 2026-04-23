@@ -417,7 +417,10 @@ serve(async (req) => {
           google_reply_time,
           review_created_at,
           updated_at,
-          location:locations(id, name, address),
+          dispute_status,
+          dispute_notes,
+          disputed_at,
+          location:locations(id, name, address, place_id),
           replies(id, content, status, is_ai_generated, created_at, posted_at, needs_review)
         `,
           { count: "exact" }
@@ -429,10 +432,14 @@ serve(async (req) => {
       const locationId = url.searchParams.get("locationId");
       const rating = url.searchParams.get("rating");
       const archived = url.searchParams.get("archived");
+      const disputeStatus = url.searchParams.get("disputeStatus");
 
       if (locationId && locationIds.includes(locationId)) query = query.eq("location_id", locationId);
       if (rating) query = query.eq("rating", Number(rating));
       if (archived === "true" || archived === "false") query = query.eq("archived", archived === "true");
+      if (disputeStatus && ["none", "flagged", "resolved", "rejected"].includes(disputeStatus)) {
+        query = query.eq("dispute_status", disputeStatus);
+      }
 
       const { data, error, count } = await query;
       if (error) throw error;
@@ -468,7 +475,10 @@ serve(async (req) => {
           google_reply_time,
           review_created_at,
           updated_at,
-          location:locations(id, name, address),
+          dispute_status,
+          dispute_notes,
+          disputed_at,
+          location:locations(id, name, address, place_id),
           replies(id, content, status, is_ai_generated, created_at, posted_at, needs_review)
         `
       );
@@ -527,6 +537,38 @@ serve(async (req) => {
       });
 
       return json(result.data, result.status);
+    }
+
+    if (req.method === "PATCH" && segments[0] === "reviews" && segments[1] && segments[2] === "dispute") {
+      const ownedReview = await getOwnedReview(supabase, user.id, segments[1], "id");
+      if (!ownedReview) {
+        return json({ error: "Review not found" }, 404);
+      }
+
+      const body = await req.json().catch(() => ({}));
+      const status = typeof body.status === "string" ? body.status : "";
+      const allowedStatuses = ["none", "flagged", "resolved", "rejected"];
+      if (!allowedStatuses.includes(status)) {
+        return json({ error: `status must be one of ${allowedStatuses.join(", ")}` }, 400);
+      }
+
+      const update: Record<string, unknown> = {
+        dispute_status: status,
+        disputed_at: status === "flagged" ? new Date().toISOString() : null,
+      };
+      if (typeof body.notes === "string" || body.notes === null) {
+        update.dispute_notes = body.notes;
+      }
+
+      const { data, error } = await supabase
+        .from("reviews")
+        .update(update)
+        .eq("id", segments[1])
+        .select("id, dispute_status, dispute_notes, disputed_at")
+        .single();
+
+      if (error) throw error;
+      return json({ data });
     }
 
     if (req.method === "POST" && route === "/sync") {

@@ -560,6 +560,9 @@ export type Database = {
           author_name: string
           author_photo_url: string | null
           created_at: string
+          dispute_notes: string | null
+          dispute_status: string
+          disputed_at: string | null
           google_reply_content: string | null
           google_reply_time: string | null
           google_review_id: string
@@ -580,6 +583,9 @@ export type Database = {
           author_name: string
           author_photo_url?: string | null
           created_at?: string
+          dispute_notes?: string | null
+          dispute_status?: string
+          disputed_at?: string | null
           google_reply_content?: string | null
           google_reply_time?: string | null
           google_review_id: string
@@ -600,6 +606,9 @@ export type Database = {
           author_name?: string
           author_photo_url?: string | null
           created_at?: string
+          dispute_notes?: string | null
+          dispute_status?: string
+          disputed_at?: string | null
           google_reply_content?: string | null
           google_reply_time?: string | null
           google_review_id?: string
