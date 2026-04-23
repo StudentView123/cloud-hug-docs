@@ -417,7 +417,10 @@ serve(async (req) => {
           google_reply_time,
           review_created_at,
           updated_at,
-          location:locations(id, name, address),
+          dispute_status,
+          dispute_notes,
+          disputed_at,
+          location:locations(id, name, address, place_id),
           replies(id, content, status, is_ai_generated, created_at, posted_at, needs_review)
         `,
           { count: "exact" }
@@ -429,10 +432,14 @@ serve(async (req) => {
       const locationId = url.searchParams.get("locationId");
       const rating = url.searchParams.get("rating");
       const archived = url.searchParams.get("archived");
+      const disputeStatus = url.searchParams.get("disputeStatus");
 
       if (locationId && locationIds.includes(locationId)) query = query.eq("location_id", locationId);
       if (rating) query = query.eq("rating", Number(rating));
       if (archived === "true" || archived === "false") query = query.eq("archived", archived === "true");
+      if (disputeStatus && ["none", "flagged", "resolved", "rejected"].includes(disputeStatus)) {
+        query = query.eq("dispute_status", disputeStatus);
+      }
 
       const { data, error, count } = await query;
       if (error) throw error;
@@ -468,7 +475,10 @@ serve(async (req) => {
           google_reply_time,
           review_created_at,
           updated_at,
-          location:locations(id, name, address),
+          dispute_status,
+          dispute_notes,
+          disputed_at,
+          location:locations(id, name, address, place_id),
           replies(id, content, status, is_ai_generated, created_at, posted_at, needs_review)
         `
       );
