@@ -539,7 +539,38 @@ serve(async (req) => {
       return json(result.data, result.status);
     }
 
-    if (req.method === "POST" && route === "/sync") {
+    if (req.method === "PATCH" && segments[0] === "reviews" && segments[1] && segments[2] === "dispute") {
+      const ownedReview = await getOwnedReview(supabase, user.id, segments[1], "id");
+      if (!ownedReview) {
+        return json({ error: "Review not found" }, 404);
+      }
+
+      const body = await req.json().catch(() => ({}));
+      const status = typeof body.status === "string" ? body.status : "";
+      const allowedStatuses = ["none", "flagged", "resolved", "rejected"];
+      if (!allowedStatuses.includes(status)) {
+        return json({ error: `status must be one of ${allowedStatuses.join(", ")}` }, 400);
+      }
+
+      const update: Record<string, unknown> = {
+        dispute_status: status,
+        disputed_at: status === "flagged" ? new Date().toISOString() : null,
+      };
+      if (typeof body.notes === "string" || body.notes === null) {
+        update.dispute_notes = body.notes;
+      }
+
+      const { data, error } = await supabase
+        .from("reviews")
+        .update(update)
+        .eq("id", segments[1])
+        .select("id, dispute_status, dispute_notes, disputed_at")
+        .single();
+
+      if (error) throw error;
+      return json({ data });
+    }
+
       const body = await req.json().catch(() => ({}));
       const result = await invokeInternalFunction("fetch-reviews", auth, body);
       return json(result.data, result.status);
