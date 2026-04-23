@@ -571,6 +571,7 @@ serve(async (req) => {
       return json({ data });
     }
 
+    if (req.method === "POST" && route === "/sync") {
       const body = await req.json().catch(() => ({}));
       const result = await invokeInternalFunction("fetch-reviews", auth, body);
       return json(result.data, result.status);
